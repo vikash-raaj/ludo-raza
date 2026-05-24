@@ -1,5 +1,11 @@
 {
   "enabledPlugins": {
     "expo@claude-plugins-official": true
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git -C /Users/vikashraj/LudoRaza pull origin main --allow-unrelated-histories --no-edit)",
+      "Bash(git -C /Users/vikashraj/LudoRaza push -u origin main)"
+    ]
   }
 }
