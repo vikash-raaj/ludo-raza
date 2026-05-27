@@ -4,7 +4,7 @@ import { GameState, GameAction, TokenPos } from '../types';
 
 export const WIN_POS = 56;
 
-export function createInitialState(players: Player[]): GameState {
+export function createInitialState(players: Player[], computerPlayers: Player[] = []): GameState {
   const tokens = {} as Record<Player, [TokenPos, TokenPos, TokenPos, TokenPos]>;
   for (const p of ALL_PLAYERS) {
     tokens[p] = [-1, -1, -1, -1];
@@ -17,6 +17,7 @@ export function createInitialState(players: Player[]): GameState {
     phase: 'rolling',
     winner: null,
     consecutiveSixes: 0,
+    computerPlayers,
   };
 }
 
@@ -109,7 +110,7 @@ function advanceTurn(state: GameState): GameState {
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case 'NEW_GAME':
-      return createInitialState(action.players);
+      return createInitialState(action.players, action.computerPlayers);
 
     case 'ROLL_DICE': {
       if (state.phase !== 'rolling') return state;

@@ -15,9 +15,10 @@ export interface GameState {
   phase: 'rolling' | 'selecting' | 'gameover';
   winner: Player | null;
   consecutiveSixes: number;
+  computerPlayers: Player[];
 }
 
 export type GameAction =
   | { type: 'ROLL_DICE' }
   | { type: 'MOVE_TOKEN'; tokenIdx: number }
-  | { type: 'NEW_GAME'; players: Player[] };
+  | { type: 'NEW_GAME'; players: Player[]; computerPlayers: Player[] };
