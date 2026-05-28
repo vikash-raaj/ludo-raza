@@ -32,6 +32,14 @@
         "projectId": "ec79b9dd-fa94-42f2-9789-a8a3c777aeb8"
       }
     },
-    "owner": "vikash"
+    "owner": "vikash",
+    "plugins": [
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-2133408429040664~5450248742"
+        }
+      ]
+    ]
   }
 }

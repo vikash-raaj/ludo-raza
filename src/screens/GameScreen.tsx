@@ -12,6 +12,7 @@ import { Player, ALL_PLAYERS, PLAYER_COLORS, PLAYER_LABELS } from '../constants/
 import { gameReducer, createInitialState, getValidMoves } from '../logic/gameLogic';
 import { getAIMove } from '../logic/aiPlayer';
 import { playSound } from '../utils/soundManager';
+import { showInterstitialAd } from '../utils/adService';
 
 const SCREEN_W = Dimensions.get('window').width;
 const SCREEN_H = Dimensions.get('window').height;
@@ -52,6 +53,7 @@ export default function GameScreen({ players, computerPlayers, onHome }: GameScr
     if (state.phase === 'gameover' && prevPhaseRef.current !== 'gameover') {
       playSound('win');
       Animated.spring(celebrateAnim, { toValue: 1, useNativeDriver: true, tension: 60, friction: 5 }).start();
+      setTimeout(() => showInterstitialAd(), 2000);
     }
     prevPhaseRef.current = state.phase;
   }, [state.phase]);
@@ -152,7 +154,13 @@ export default function GameScreen({ players, computerPlayers, onHome }: GameScr
 
       {/* Top bar */}
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={onHome} style={styles.navBtn}>
+        <TouchableOpacity
+          onPress={() => {
+            if (state.phase !== 'gameover') showInterstitialAd();
+            onHome();
+          }}
+          style={styles.navBtn}
+        >
           <Text style={styles.navTxt}>← Menu</Text>
         </TouchableOpacity>
         <Text style={styles.gameTitle}>🎲 LUDO RAZA</Text>

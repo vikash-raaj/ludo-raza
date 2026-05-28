@@ -3,6 +3,7 @@ import { Player } from './src/constants/players';
 import HomeScreen from './src/screens/HomeScreen';
 import GameScreen from './src/screens/GameScreen';
 import { initSounds, playSound } from './src/utils/soundManager';
+import { initAds } from './src/utils/adService';
 
 type Screen = 'home' | 'game';
 
@@ -14,6 +15,7 @@ export default function App() {
   // Preload all audio assets so in-game playback has zero delay
   useEffect(() => {
     initSounds();
+    initAds();
   }, []);
 
   if (screen === 'game') {
