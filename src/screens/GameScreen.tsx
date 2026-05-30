@@ -1,8 +1,9 @@
 import React, { useReducer, useCallback, useEffect, useRef } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
+  View, Text, TouchableOpacity, StyleSheet,
   StatusBar, Dimensions, Alert, Animated,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Board from '../components/Board';
 import Dice from '../components/Dice';
@@ -125,11 +126,14 @@ export default function GameScreen({ players, computerPlayers, onHome }: GameScr
     Alert.alert('New Game', 'Start a new game?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'New Game', onPress: () => {
+        // Game-over path already shows an ad via the 2s delayed call; only
+        // fire here when the user abandons an in-progress game.
+        if (state.phase !== 'gameover') showInterstitialAd();
         celebrateAnim.setValue(0);
         dispatch({ type: 'NEW_GAME', players, computerPlayers });
       }},
     ]);
-  }, [players, computerPlayers]);
+  }, [players, computerPlayers, state.phase]);
 
   // ── Labels ─────────────────────────────────────────────────────────────────
   const turnLabel = (): string => {

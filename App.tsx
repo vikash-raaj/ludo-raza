@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Player } from './src/constants/players';
 import HomeScreen from './src/screens/HomeScreen';
 import GameScreen from './src/screens/GameScreen';
@@ -18,24 +19,24 @@ export default function App() {
     initAds();
   }, []);
 
-  if (screen === 'game') {
-    return (
-      <GameScreen
-        players={players}
-        computerPlayers={computerPlayers}
-        onHome={() => setScreen('home')}
-      />
-    );
-  }
-
   return (
-    <HomeScreen
-      onStart={(selected, computers) => {
-        playSound('game_start');
-        setPlayers(selected);
-        setComputerPlayers(computers);
-        setScreen('game');
-      }}
-    />
+    <SafeAreaProvider>
+      {screen === 'game' ? (
+        <GameScreen
+          players={players}
+          computerPlayers={computerPlayers}
+          onHome={() => setScreen('home')}
+        />
+      ) : (
+        <HomeScreen
+          onStart={(selected, computers) => {
+            playSound('game_start');
+            setPlayers(selected);
+            setComputerPlayers(computers);
+            setScreen('game');
+          }}
+        />
+      )}
+    </SafeAreaProvider>
   );
 }

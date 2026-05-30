@@ -3,35 +3,83 @@ import {
   InterstitialAd,
   AdEventType,
   MobileAds,
+  AdsConsent,
+  AdsConsentStatus,
 } from 'react-native-google-mobile-ads';
+import { AppState, AppStateStatus } from 'react-native';
 
 const APP_OPEN_UNIT_ID     = 'ca-app-pub-2133408429040664/4963163585';
 const INTERSTITIAL_UNIT_ID = 'ca-app-pub-2133408429040664/6906270418';
 
+// ── Consent (UMP / GDPR) ───────────────────────────────────────────────────────
+
+async function requestConsent(): Promise<void> {
+  try {
+    const consentInfo = await AdsConsent.requestInfoUpdate();
+    if (
+      consentInfo.isConsentFormAvailable &&
+      consentInfo.status === AdsConsentStatus.REQUIRED
+    ) {
+      await AdsConsent.showForm();
+    }
+  } catch {
+    // Consent errors must not block ad initialization
+  }
+}
+
 // ── Initialization ─────────────────────────────────────────────────────────────
 
 export async function initAds() {
+  await requestConsent();
   await MobileAds().initialize();
-  createAppOpenAd();
+  setupAppOpenAd();
   createInterstitialAd();
 }
 
 // ── App Open Ad ────────────────────────────────────────────────────────────────
 
 let appOpenAd: AppOpenAd | null = null;
+let appOpenAdLoaded = false;
+let isShowingAppOpenAd = false;
 
-function createAppOpenAd() {
+function loadAppOpenAd() {
+  appOpenAdLoaded = false;
   appOpenAd = AppOpenAd.createForAdRequest(APP_OPEN_UNIT_ID);
+
   appOpenAd.addAdEventListener(AdEventType.LOADED, () => {
-    appOpenAd?.show();
+    appOpenAdLoaded = true;
+  });
+  appOpenAd.addAdEventListener(AdEventType.OPENED, () => {
+    isShowingAppOpenAd = true;
   });
   appOpenAd.addAdEventListener(AdEventType.CLOSED, () => {
-    createAppOpenAd();
+    isShowingAppOpenAd = false;
+    loadAppOpenAd();
   });
   appOpenAd.addAdEventListener(AdEventType.ERROR, () => {
-    setTimeout(createAppOpenAd, 30_000);
+    appOpenAdLoaded = false;
+    setTimeout(loadAppOpenAd, 30_000);
   });
+
   appOpenAd.load();
+}
+
+function setupAppOpenAd() {
+  loadAppOpenAd();
+
+  // Track previous state so we only react to background → active transitions.
+  // The app starts in 'active', so the first CHANGE event fires when the user
+  // backgrounds the app — meaning cold-launch is intentionally excluded.
+  let previousState: AppStateStatus = AppState.currentState;
+
+  AppState.addEventListener('change', (nextState: AppStateStatus) => {
+    if (previousState !== 'active' && nextState === 'active' && !isShowingAppOpenAd) {
+      if (appOpenAdLoaded && appOpenAd) {
+        appOpenAd.show();
+      }
+    }
+    previousState = nextState;
+  });
 }
 
 // ── Interstitial Ad ────────────────────────────────────────────────────────────
