@@ -114,29 +114,67 @@ const win = (() => {
   });
 })();
 
-// 6. game_start – snappy 3-note "Let's go!" jingle  G4 → B4 → D5 (380 ms)
+// 6. game_start – Candy Crush-style fanfare: drum pop + 5-note C-major ascent (1.3 s)
 const gameStart = (() => {
-  const notes   = [392, 494, 587]; // G4, B4, D5
-  const stepDur = 0.10;
-  const totalDur = notes.length * stepDur + 0.08;
+  const totalDur = 1.30;
   const n = Math.round(SR * totalDur);
+  // ascending C major pentatonic: C5 E5 G5 C6 E6
+  const melody = [
+    { freq: 523,  start: 0.06, dur: 0.18 },
+    { freq: 659,  start: 0.20, dur: 0.18 },
+    { freq: 784,  start: 0.34, dur: 0.18 },
+    { freq: 1047, start: 0.48, dur: 0.25 },
+    { freq: 1319, start: 0.68, dur: 0.62 }, // E6 rings out
+  ];
   return Array.from({ length: n }, (_, i) => {
     const t = i / SR;
     let s = 0;
-    notes.forEach((freq, idx) => {
-      const start  = idx * stepDur;
-      const isLast = idx === notes.length - 1;
-      const end    = isLast ? totalDur : start + stepDur + 0.04;
-      if (t >= start && t < end) {
-        const tNote   = t - start;
-        const noteDur = end - start;
-        const attack  = Math.min(tNote * 60, 1);
-        const release = Math.max(1 - (tNote / noteDur) * (isLast ? 1.2 : 2.5), 0);
-        s += attack * release * 0.45 * Math.sin(TAU * freq * t);
-        s += attack * release * 0.13 * Math.sin(TAU * freq * 2 * t);
+    // Opening drum pop (0–60 ms): noise burst + low thump
+    if (t < 0.06) {
+      const env = Math.exp(-t * 80);
+      s += env * 0.35 * (Math.random() * 2 - 1);           // snare noise
+      s += Math.exp(-t * 40) * 0.5 * Math.sin(TAU * 120 * t); // kick thump
+    }
+    // Melody notes
+    melody.forEach(({ freq, start, dur }) => {
+      if (t >= start && t < start + dur) {
+        const tn  = t - start;
+        const att = Math.min(tn * 80, 1);
+        const rel = Math.max(1 - tn / dur, 0);
+        s += att * rel * 0.38 * Math.sin(TAU * freq * t);
+        s += att * rel * 0.14 * Math.sin(TAU * freq * 2 * t); // octave
+        s += att * rel * 0.07 * Math.sin(TAU * freq * 3 * t); // warmth
       }
     });
-    return s;
+    return Math.max(-1, Math.min(1, s));
+  });
+})();
+
+// 7. countdown_beep – sharp 1 kHz tick for 3-2-1 countdown (200 ms)
+const countdownBeep = (() => {
+  const n = Math.round(SR * 0.20);
+  return Array.from({ length: n }, (_, i) => {
+    const t   = i / SR;
+    const att = Math.min(t * 200, 1);
+    const rel = Math.exp(-t * 18);
+    return att * rel * 0.55 * Math.sin(TAU * 1000 * t);
+  });
+})();
+
+// 8. countdown_go – punchy "GO!" hit: drum crack + C5 chord stab (500 ms)
+const countdownGo = (() => {
+  const n = Math.round(SR * 0.50);
+  const chord = [523, 659, 784]; // C5 E5 G5
+  return Array.from({ length: n }, (_, i) => {
+    const t = i / SR;
+    let s = 0;
+    // crack
+    if (t < 0.03) s += Math.exp(-t * 150) * 0.5 * (Math.random() * 2 - 1);
+    chord.forEach(freq => {
+      const rel = Math.exp(-t * 7);
+      s += rel * 0.25 * Math.sin(TAU * freq * t);
+    });
+    return Math.max(-1, Math.min(1, s));
   });
 })();
 
@@ -144,7 +182,7 @@ const gameStart = (() => {
 const out = './assets/sounds';
 fs.mkdirSync(out, { recursive: true });
 
-const files = { dice_roll: diceRoll, token_move: tokenMove, token_exit: tokenExit, token_capture: tokenCapture, win, game_start: gameStart };
+const files = { dice_roll: diceRoll, token_move: tokenMove, token_exit: tokenExit, token_capture: tokenCapture, win, game_start: gameStart, countdown_beep: countdownBeep, countdown_go: countdownGo };
 
 for (const [name, samples] of Object.entries(files)) {
   const buf  = toWav(samples);

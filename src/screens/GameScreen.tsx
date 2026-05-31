@@ -1,4 +1,4 @@
-import React, { useReducer, useCallback, useEffect, useRef } from 'react';
+import React, { useReducer, useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
   StatusBar, Dimensions, Alert, Animated,
@@ -35,6 +35,36 @@ export default function GameScreen({ players, computerPlayers, onHome }: GameScr
     () => createInitialState(players, computerPlayers)
   );
 
+  // ── Countdown overlay: 3 → 2 → 1 → GO! ───────────────────────────────────
+  const [countdown, setCountdown] = useState<3 | 2 | 1 | 'GO!' | null>(3);
+  const countdownAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const sequence: Array<3 | 2 | 1 | 'GO!' | null> = [3, 2, 1, 'GO!', null];
+    let step = 0;
+
+    const tick = () => {
+      const val = sequence[step];
+      setCountdown(val);
+      countdownAnim.setValue(0);
+      Animated.spring(countdownAnim, {
+        toValue: 1, useNativeDriver: true, tension: 120, friction: 6,
+      }).start();
+
+      if (val === null) return;
+      if (val === 'GO!') {
+        playSound('countdown_go');
+      } else {
+        playSound('countdown_beep');
+      }
+      step++;
+      setTimeout(tick, val === 'GO!' ? 700 : 750);
+    };
+
+    const t = setTimeout(tick, 100);
+    return () => clearTimeout(t);
+  }, []);
+
   const currentPlayer = state.players[state.currentPlayerIdx];
   const isComputerTurn = state.computerPlayers.includes(currentPlayer) && state.phase !== 'gameover';
 
@@ -59,36 +89,75 @@ export default function GameScreen({ players, computerPlayers, onHome }: GameScr
     prevPhaseRef.current = state.phase;
   }, [state.phase]);
 
-  // Detect captures: any opponent token that went from on-board (>=0,<51) to base (-1)
+  // ── Step animation state ───────────────────────────────────────────────────
+  const [animatingToken, setAnimatingToken] = useState<{
+    player: Player; tokenIdx: number; visPos: number;
+  } | null>(null);
+
+  // ── Capture detection + step-by-step animation (single effect) ────────────
   const isFirstRender = useRef(true);
   const prevTokensRef = useRef(state.tokens);
+
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return; }
+
+    const prev = prevTokensRef.current;
+    prevTokensRef.current = state.tokens;
+
+    // Capture sound: any token that went from on-board to base
     let captured = false;
     for (const p of ALL_PLAYERS) {
       for (let i = 0; i < 4; i++) {
-        if (prevTokensRef.current[p][i] >= 0 &&
-            prevTokensRef.current[p][i] < 51 &&
-            state.tokens[p][i] === -1) {
+        if (prev[p][i] >= 0 && prev[p][i] < 51 && state.tokens[p][i] === -1) {
           captured = true;
         }
       }
     }
     if (captured) playSound('token_capture');
-    prevTokensRef.current = state.tokens;
+
+    // Find the token that moved forward → animate step by step
+    for (const p of ALL_PLAYERS) {
+      for (let i = 0; i < 4; i++) {
+        const oldPos = prev[p][i];
+        const newPos = state.tokens[p][i];
+        const isForward = (oldPos >= 0 && newPos > oldPos) || (oldPos === -1 && newPos === 0);
+        if (!isForward) continue;
+
+        const steps: number[] = [];
+        const start = oldPos === -1 ? 0 : oldPos + 1;
+        for (let pos = start; pos <= newPos; pos++) steps.push(pos);
+        if (steps.length === 0) continue;
+
+        const STEP_MS = 180;
+        setAnimatingToken({ player: p, tokenIdx: i, visPos: steps[0] });
+
+        const timers: ReturnType<typeof setTimeout>[] = [];
+        for (let s = 1; s < steps.length; s++) {
+          const step = steps[s];
+          timers.push(setTimeout(() => {
+            setAnimatingToken({ player: p, tokenIdx: i, visPos: step });
+          }, s * STEP_MS));
+        }
+        timers.push(setTimeout(() => setAnimatingToken(null), steps.length * STEP_MS));
+
+        return () => timers.forEach(clearTimeout);
+      }
+    }
   }, [state.tokens]);
 
+  const isAnimating = animatingToken !== null;
+
   // ── AI auto-play ───────────────────────────────────────────────────────────
-  // Use a ref so the timeout closure always sees fresh state
   const stateRef = useRef(state);
   stateRef.current = state;
 
   useEffect(() => {
-    if (!isComputerTurn) return;
+    // Wait for any running animation to finish before the AI acts
+    if (!isComputerTurn || isAnimating) return;
 
     const delay = state.phase === 'rolling'
-      ? 1100 + Math.random() * 600   // 1.1–1.7s to "think" before rolling
-      : 700  + Math.random() * 400;  // 0.7–1.1s to "pick" a token
+      ? 1200 + Math.random() * 600
+      : 900  + Math.random() * 400;
 
     const timer = setTimeout(() => {
       const s = stateRef.current;
@@ -105,22 +174,21 @@ export default function GameScreen({ players, computerPlayers, onHome }: GameScr
     }, delay);
 
     return () => clearTimeout(timer);
-  }, [state.phase, state.currentPlayerIdx, isComputerTurn]);
+  }, [state.phase, state.currentPlayerIdx, isComputerTurn, isAnimating]);
 
   // ── Human actions ──────────────────────────────────────────────────────────
   const handleRoll = useCallback(() => {
-    if (isComputerTurn) return;
+    if (isComputerTurn || isAnimating) return;
     playSound('dice_roll');
     dispatch({ type: 'ROLL_DICE' });
-  }, [isComputerTurn]);
+  }, [isComputerTurn, isAnimating]);
 
   const handleTokenPress = useCallback((tokenIdx: number) => {
-    if (isComputerTurn) return;
-    // Detect if this is an exit-from-base move
+    if (isComputerTurn || isAnimating) return;
     const pos = state.tokens[currentPlayer][tokenIdx];
     playSound(pos === -1 ? 'token_exit' : 'token_move');
     dispatch({ type: 'MOVE_TOKEN', tokenIdx });
-  }, [isComputerTurn, state.tokens, currentPlayer]);
+  }, [isComputerTurn, isAnimating, state.tokens, currentPlayer]);
 
   const handleNewGame = useCallback(() => {
     Alert.alert('New Game', 'Start a new game?', [
@@ -190,9 +258,12 @@ export default function GameScreen({ players, computerPlayers, onHome }: GameScr
       <View style={styles.boardWrapper}>
         <Board
           state={state}
-          validTokens={isComputerTurn ? [] : validTokens}
+          validTokens={isAnimating || isComputerTurn ? [] : validTokens}
           onTokenPress={handleTokenPress}
           size={BOARD_SIZE}
+          tokenOverride={animatingToken
+            ? { player: animatingToken.player, tokenIdx: animatingToken.tokenIdx, pos: animatingToken.visPos }
+            : undefined}
         />
       </View>
 
@@ -290,6 +361,27 @@ export default function GameScreen({ players, computerPlayers, onHome }: GameScr
           </Animated.View>
         )}
       </View>
+
+      {/* Countdown overlay */}
+      {countdown !== null && (
+        <View style={styles.countdownOverlay} pointerEvents="none">
+          <Animated.Text style={[
+            styles.countdownText,
+            countdown === 'GO!' ? styles.countdownGo : styles.countdownNum,
+            {
+              transform: [{
+                scale: countdownAnim.interpolate({
+                  inputRange: [0, 0.6, 1],
+                  outputRange: [0.3, 1.15, 1],
+                }),
+              }],
+              opacity: countdownAnim,
+            },
+          ]}>
+            {countdown}
+          </Animated.Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -348,4 +440,18 @@ const styles = StyleSheet.create({
   },
   winEmoji: { fontSize: 26 },
   winText: { fontSize: 22, fontWeight: '900' },
+
+  // Countdown overlay
+  countdownOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  countdownText: {
+    fontWeight: '900', textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 12,
+    textShadowOffset: { width: 0, height: 4 },
+  },
+  countdownNum: { fontSize: 140, color: '#FFD600' },
+  countdownGo:  { fontSize: 90,  color: '#69F0AE' },
 });
