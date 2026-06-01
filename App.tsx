@@ -15,8 +15,8 @@ export default function App() {
   const [computerPlayers, setComputerPlayers] = useState<Player[]>([]);
 
   useEffect(() => {
-    initSounds();
-    initAds();
+    initSounds().catch(() => {});
+    initAds().catch(() => {});
   }, []);
 
   return (

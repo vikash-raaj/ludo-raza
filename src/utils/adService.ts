@@ -30,10 +30,14 @@ async function requestConsent(): Promise<void> {
 // ── Initialization ─────────────────────────────────────────────────────────────
 
 export async function initAds() {
-  await requestConsent();
-  await MobileAds().initialize();
-  setupAppOpenAd();
-  createInterstitialAd();
+  try {
+    await requestConsent();
+    await MobileAds().initialize();
+    setupAppOpenAd();
+    createInterstitialAd();
+  } catch {
+    // Ad SDK failures must never crash the app
+  }
 }
 
 // ── App Open Ad ────────────────────────────────────────────────────────────────
