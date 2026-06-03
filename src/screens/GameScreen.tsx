@@ -227,10 +227,7 @@ export default function GameScreen({ players, computerPlayers, onHome }: GameScr
       {/* Top bar */}
       <View style={styles.topBar}>
         <TouchableOpacity
-          onPress={() => {
-            if (state.phase !== 'gameover') showInterstitialAd();
-            onHome();
-          }}
+          onPress={onHome}
           style={styles.navBtn}
         >
           <Text style={styles.navTxt}>← Menu</Text>
