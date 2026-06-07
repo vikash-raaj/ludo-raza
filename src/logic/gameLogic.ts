@@ -4,10 +4,16 @@ import { GameState, GameAction, TokenPos } from '../types';
 
 export const WIN_POS = 56;
 
-export function createInitialState(players: Player[], computerPlayers: Player[] = []): GameState {
+export function createInitialState(
+  players: Player[],
+  computerPlayers: Player[] = [],
+  quickMode = false,
+): GameState {
   const tokens = {} as Record<Player, [TokenPos, TokenPos, TokenPos, TokenPos]>;
   for (const p of ALL_PLAYERS) {
-    tokens[p] = [-1, -1, -1, -1];
+    // Quick mode: 2 tokens already on the board (pos 5, 18) so every player
+    // can move immediately without needing a 6.
+    tokens[p] = quickMode ? [-1, -1, 5, 18] : [-1, -1, -1, -1];
   }
   return {
     players,
@@ -18,6 +24,7 @@ export function createInitialState(players: Player[], computerPlayers: Player[] 
     winner: null,
     consecutiveSixes: 0,
     computerPlayers,
+    quickMode,
   };
 }
 
@@ -110,7 +117,12 @@ function advanceTurn(state: GameState): GameState {
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case 'NEW_GAME':
-      return createInitialState(action.players, action.computerPlayers);
+      return createInitialState(action.players, action.computerPlayers, action.quickMode);
+
+    case 'SKIP_TURN': {
+      const nextIdx = (state.currentPlayerIdx + 1) % state.players.length;
+      return { ...state, currentPlayerIdx: nextIdx, phase: 'rolling', diceValue: null, consecutiveSixes: 0 };
+    }
 
     case 'ROLL_DICE': {
       if (state.phase !== 'rolling') return state;

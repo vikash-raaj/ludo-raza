@@ -4,6 +4,8 @@ import Svg, { Circle, Ellipse, G, Line, Path, Polygon, Rect } from 'react-native
 
 import { MAIN_PATH, SAFE_INDICES, TOKEN_BASE_CELLS } from '../constants/board';
 import { Player, ALL_PLAYERS, PLAYER_COLORS, PLAYER_LIGHT } from '../constants/players';
+import { AppTheme } from '../constants/themes';
+import { TokenShape } from '../utils/storage';
 import { GameState, TokenPos } from '../types';
 import { getCoords, WIN_POS } from '../logic/gameLogic';
 
@@ -15,11 +17,14 @@ interface BoardProps {
   onTokenPress: (tokenIdx: number) => void;
   size: number;
   tokenOverride?: { player: Player; tokenIdx: number; pos: number };
+  theme?: AppTheme;
+  tokenShape?: TokenShape;
+  newlyHomedPlayer?: Player | null;
 }
 
-// ── Map-pin (teardrop) path ─────────────────────────────────────────────────
-// Arc from lower-left to lower-right going clockwise through the TOP, then
-// two straight lines converge to the bottom point.
+// ── Token shape renderers ───────────────────────────────────────────────────
+
+// Map-pin (teardrop)
 function makePinPath(cx: number, cy: number, headR: number): string {
   const headCy  = cy - headR * 0.12;
   const spreadX = headR * 0.88;
@@ -29,6 +34,27 @@ function makePinPath(cx: number, cy: number, headR: number): string {
     `M ${cx - spreadX},${spreadY} ` +
     `A ${headR} ${headR} 0 1 1 ${cx + spreadX},${spreadY} ` +
     `L ${cx},${pointY} Z`
+  );
+}
+
+// Chess-pawn shape: wide base, narrow neck, round head
+function makePawnPath(cx: number, cy: number, r: number): string {
+  const headR  = r * 0.46;
+  const headCy = cy - r * 0.72;
+  const neckW  = r * 0.22;
+  const neckTop = headCy + headR * 0.85;
+  const neckBot = cy + r * 0.30;
+  const baseW  = r * 0.82;
+  const baseH  = r * 0.28;
+  const baseTop = cy + r * 0.30;
+  const baseBot = cy + r * 0.85;
+  return (
+    `M ${cx - neckW},${neckTop} ` +
+    `A ${headR} ${headR} 0 1 1 ${cx + neckW},${neckTop} ` +
+    `L ${cx + neckW},${neckBot} ` +
+    `L ${cx + baseW},${baseBot} ` +
+    `L ${cx - baseW},${baseBot} ` +
+    `L ${cx - neckW},${neckBot} Z`
   );
 }
 
@@ -105,7 +131,7 @@ function starPoints(cx: number, cy: number, numPoints: number, outer: number, in
   return points.join(' ');
 }
 
-export default function Board({ state, validTokens, onTokenPress, size, tokenOverride }: BoardProps) {
+export default function Board({ state, validTokens, onTokenPress, size, tokenOverride, theme, tokenShape = 'pin', newlyHomedPlayer }: BoardProps) {
   const cs = size / 15;
   const currentPlayer = state.players[state.currentPlayerIdx];
   const allTokens = collectTokens(state, tokenOverride);
@@ -178,13 +204,14 @@ export default function Board({ state, validTokens, onTokenPress, size, tokenOve
 
   // --- Grid lines ---
   const gridLines: React.ReactNode[] = [];
-  const stroke = '#BDBDBD';
+  const stroke = theme?.gridStroke ?? '#BDBDBD';
+  const border = theme?.boardBorder ?? '#424242';
   for (let r = 0; r <= 15; r++)
     gridLines.push(<Line key={`hl${r}`} x1={0} y1={r*cs} x2={size} y2={r*cs} stroke={stroke} strokeWidth={0.5} />);
   for (let c = 0; c <= 15; c++)
     gridLines.push(<Line key={`vl${c}`} x1={c*cs} y1={0} x2={c*cs} y2={size} stroke={stroke} strokeWidth={0.5} />);
   gridLines.push(
-    <Rect key="border" x={0} y={0} width={size} height={size} fill="none" stroke="#424242" strokeWidth={2} />
+    <Rect key="border" x={0} y={0} width={size} height={size} fill="none" stroke={border} strokeWidth={2} />
   );
 
   // --- Safe stars ---
@@ -194,7 +221,7 @@ export default function Board({ state, validTokens, onTokenPress, size, tokenOve
     const cx = (c + 0.5) * cs;
     const cy = (r + 0.5) * cs;
     safeMarkers.push(
-      <Polygon key={`safe${idx}`} points={starPoints(cx, cy, 6, cs * 0.38, cs * 0.18)} fill="#FFD600" opacity={0.8} />
+      <Polygon key={`safe${idx}`} points={starPoints(cx, cy, 6, cs * 0.38, cs * 0.18)} fill={theme?.safeColor ?? '#FFD600'} opacity={0.8} />
     );
   });
 
@@ -207,7 +234,7 @@ export default function Board({ state, validTokens, onTokenPress, size, tokenOve
     <Polygon key="ct-b" points={`${cxc},${cyc} ${x0},${y1} ${x1},${y1}`} fill={PLAYER_COLORS.red} />,
   ];
 
-  // --- Pin tokens ---
+  // --- Tokens on board ---
   const tokenNodes: React.ReactNode[] = [];
   grouped.forEach((tokens) => {
     const count = tokens.length;
@@ -227,63 +254,107 @@ export default function Board({ state, validTokens, onTokenPress, size, tokenOve
         cy = (r0 + MULTI_OFFSETS[stackIdx + 1][1]) * cs;
       }
 
-      const headR   = (count === 1 || t.pos === -1) ? cs * 0.30 : cs * 0.22;
-      const headCy  = cy - headR * 0.12;
-      const pinColor = PLAYER_COLORS[t.player];
-      const hitR    = (count === 1) ? cs * 0.46 : cs * 0.30;
+      const headR    = (count === 1 || t.pos === -1) ? cs * 0.30 : cs * 0.22;
+      const headCy   = cy - headR * 0.12;
+      const color    = PLAYER_COLORS[t.player];
+      const hitR     = (count === 1) ? cs * 0.46 : cs * 0.30;
+      const strokeW  = isSelectable ? 2.5 : 1.2;
+      const stroke   = isSelectable ? '#FFFFFF' : 'rgba(0,0,0,0.30)';
 
       tokenNodes.push(
-        <G
-          key={`tok-${t.player}-${t.tokenIdx}`}
-          onPress={() => { if (isSelectable) onTokenPress(t.tokenIdx); }}
-        >
-          {/* Hit area */}
+        <G key={`tok-${t.player}-${t.tokenIdx}`} onPress={() => { if (isSelectable) onTokenPress(t.tokenIdx); }}>
           <Circle cx={cx} cy={cy} r={hitR} fill="rgba(0,0,0,0.001)" />
 
-          {/* Glow ring when selectable */}
           {isSelectable && (
-            <AnimatedCircle
-              cx={cx} cy={headCy}
-              r={headR + cs * 0.17}
-              fill="white"
-              opacity={glowAnim}
-            />
+            <AnimatedCircle cx={cx} cy={headCy} r={headR + cs * 0.17} fill="white" opacity={glowAnim} />
           )}
 
-          {/* Drop shadow */}
-          <Ellipse
-            cx={cx} cy={headCy + headR * 1.85}
-            rx={headR * 0.62} ry={headR * 0.16}
-            fill="rgba(0,0,0,0.20)"
-          />
-
-          {/* Pin body (teardrop) */}
-          <Path
-            d={makePinPath(cx, cy, headR)}
-            fill={pinColor}
-            stroke={isSelectable ? '#FFFFFF' : 'rgba(0,0,0,0.30)'}
-            strokeWidth={isSelectable ? 2.5 : 1.2}
-          />
-
-          {/* Inner dark ring — gives 3-D depth */}
-          <Circle
-            cx={cx} cy={headCy}
-            r={headR * 0.56}
-            fill="none"
-            stroke="rgba(0,0,0,0.28)"
-            strokeWidth={headR * 0.28}
-          />
-
-          {/* Shine highlight */}
-          <Circle
-            cx={cx - headR * 0.34} cy={headCy - headR * 0.40}
-            r={headR * 0.26}
-            fill="rgba(255,255,255,0.70)"
-          />
+          {tokenShape === 'round' ? (
+            // ── Round (classic disc) ──────────────────────────────────
+            <G>
+              <Ellipse cx={cx} cy={cy + headR * 0.8} rx={headR * 0.7} ry={headR * 0.18} fill="rgba(0,0,0,0.20)" />
+              <Circle cx={cx} cy={cy} r={headR} fill={color} stroke={stroke} strokeWidth={strokeW} />
+              <Circle cx={cx} cy={cy} r={headR * 0.55} fill="none" stroke="rgba(0,0,0,0.25)" strokeWidth={headR * 0.25} />
+              <Circle cx={cx - headR * 0.34} cy={cy - headR * 0.38} r={headR * 0.26} fill="rgba(255,255,255,0.70)" />
+            </G>
+          ) : tokenShape === 'pawn' ? (
+            // ── Pawn (chess-piece silhouette) ─────────────────────────
+            <G>
+              <Ellipse cx={cx} cy={cy + headR * 1.75} rx={headR * 0.9} ry={headR * 0.18} fill="rgba(0,0,0,0.20)" />
+              <Path d={makePawnPath(cx, cy, headR)} fill={color} stroke={stroke} strokeWidth={strokeW} />
+              <Circle cx={cx - headR * 0.30} cy={cy - headR * 0.60} r={headR * 0.22} fill="rgba(255,255,255,0.65)" />
+            </G>
+          ) : (
+            // ── Pin (map-pin teardrop, default) ───────────────────────
+            <G>
+              <Ellipse cx={cx} cy={headCy + headR * 1.85} rx={headR * 0.62} ry={headR * 0.16} fill="rgba(0,0,0,0.20)" />
+              <Path d={makePinPath(cx, cy, headR)} fill={color} stroke={stroke} strokeWidth={strokeW} />
+              <Circle cx={cx} cy={headCy} r={headR * 0.56} fill="none" stroke="rgba(0,0,0,0.28)" strokeWidth={headR * 0.28} />
+              <Circle cx={cx - headR * 0.34} cy={headCy - headR * 0.40} r={headR * 0.26} fill="rgba(255,255,255,0.70)" />
+            </G>
+          )}
         </G>
       );
     });
   });
+
+  // --- Won tokens in center triangles ---
+  // Each player's finished tokens appear as small dots in their colored triangle
+  const centerTokenR = cs * 0.14;
+  const wonTokenNodes: React.ReactNode[] = [];
+  const triCenters: Record<Player, { x: number; y: number }> = {
+    red:    { x: 7.5 * cs, y: 7.75 * cs },
+    green:  { x: 7.25 * cs, y: 7.5 * cs },
+    yellow: { x: 7.5 * cs, y: 7.25 * cs },
+    blue:   { x: 7.75 * cs, y: 7.5 * cs },
+  };
+  const wonOffsets: [number, number][] = [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]];
+  for (const player of ALL_PLAYERS) {
+    const wonCount = state.tokens[player].filter(p => p === WIN_POS).length;
+    if (wonCount === 0) continue;
+    const tc = triCenters[player];
+    for (let i = 0; i < wonCount; i++) {
+      const ox = wonOffsets[i][0] * centerTokenR * 1.1;
+      const oy = wonOffsets[i][1] * centerTokenR * 1.1;
+      wonTokenNodes.push(
+        <Circle
+          key={`won-${player}-${i}`}
+          cx={tc.x + ox} cy={tc.y + oy}
+          r={centerTokenR}
+          fill="white"
+          stroke={PLAYER_COLORS[player]}
+          strokeWidth={1.5}
+          opacity={0.95}
+        />
+      );
+    }
+  }
+
+  // --- Home-arrival sparkle ring (pulses on the newly homed player's triangle) ---
+  const sparkleAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!newlyHomedPlayer) return;
+    sparkleAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(sparkleAnim, { toValue: 1, duration: 180, useNativeDriver: true }),
+      Animated.timing(sparkleAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
+    ]).start();
+  }, [newlyHomedPlayer]);
+
+  const AnimatedCircleSparkle = Animated.createAnimatedComponent(Circle);
+  const sparkleNode = newlyHomedPlayer ? (() => {
+    const tc = triCenters[newlyHomedPlayer];
+    return (
+      <AnimatedCircleSparkle
+        cx={tc.x} cy={tc.y}
+        r={cs * 0.38}
+        fill="none"
+        stroke="white"
+        strokeWidth={2}
+        opacity={sparkleAnim}
+      />
+    );
+  })() : null;
 
   return (
     <View style={{
@@ -297,6 +368,8 @@ export default function Board({ state, validTokens, onTokenPress, size, tokenOve
         {gridLines}
         {safeMarkers}
         {centerTris}
+        {wonTokenNodes}
+        {sparkleNode}
         {tokenNodes}
       </Svg>
     </View>

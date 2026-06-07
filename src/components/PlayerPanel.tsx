@@ -14,12 +14,20 @@ interface PlayerPanelProps {
   isActive: boolean;
   isWinner: boolean;
   isComputer?: boolean;
+  /** Override label — used to show the human player's actual name */
+  displayName?: string;
 }
 
-export default function PlayerPanel({ player, tokens, isActive, isWinner, isComputer }: PlayerPanelProps) {
-  const color = PLAYER_COLORS[player];
+export default function PlayerPanel({
+  player, tokens, isActive, isWinner, isComputer, displayName,
+}: PlayerPanelProps) {
+  const color    = PLAYER_COLORS[player];
   const finished = tokens.filter(t => t === WIN_POS).length;
   const onBoard  = tokens.filter(t => t >= 0 && t < WIN_POS).length;
+
+  const name = isWinner
+    ? `🏆 ${displayName ?? PLAYER_LABELS[player]}`
+    : `${PLAYER_EMOJI[player]} ${displayName ?? PLAYER_LABELS[player]}`;
 
   return (
     <View style={[
@@ -30,10 +38,7 @@ export default function PlayerPanel({ player, tokens, isActive, isWinner, isComp
       <View style={[styles.colorBar, { backgroundColor: color }]} />
       <View style={styles.info}>
         <View style={styles.nameRow}>
-          <Text style={[styles.name, { color }]}>
-            {isWinner ? '🏆 ' : PLAYER_EMOJI[player] + ' '}
-            {PLAYER_LABELS[player]}
-          </Text>
+          <Text style={[styles.name, { color }]} numberOfLines={1}>{name}</Text>
           {isComputer && !isWinner && (
             <View style={[styles.cpuBadge, { borderColor: color }]}>
               <Text style={[styles.cpuText, { color }]}>CPU</Text>
@@ -82,18 +87,13 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
-  colorBar: { width: 8, alignSelf: 'stretch' },
-  info: { paddingHorizontal: 8, paddingVertical: 6, flex: 1 },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  name: { fontSize: 13, fontWeight: '700' },
-  cpuBadge: {
-    borderWidth: 1, borderRadius: 4,
-    paddingHorizontal: 4, paddingVertical: 1,
-  },
-  cpuText: { fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
-  tokens: { flexDirection: 'row', gap: 4, marginVertical: 3 },
-  dot: {
-    width: 11, height: 11, borderRadius: 6, borderWidth: 1.5,
-  },
-  score: { fontSize: 10, fontWeight: '600' },
+  colorBar:  { width: 8, alignSelf: 'stretch' },
+  info:      { paddingHorizontal: 8, paddingVertical: 6, flex: 1 },
+  nameRow:   { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  name:      { fontSize: 12, fontWeight: '700', flexShrink: 1 },
+  cpuBadge:  { borderWidth: 1, borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1 },
+  cpuText:   { fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
+  tokens:    { flexDirection: 'row', gap: 4, marginVertical: 3 },
+  dot:       { width: 11, height: 11, borderRadius: 6, borderWidth: 1.5 },
+  score:     { fontSize: 10, fontWeight: '600' },
 });

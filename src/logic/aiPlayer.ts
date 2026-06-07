@@ -3,6 +3,8 @@ import { Player } from '../constants/players';
 import { getValidMoves, WIN_POS, getCoords } from './gameLogic';
 import { SAFE_INDICES, PLAYER_OFFSET } from '../constants/board';
 
+export type AIDifficulty = 'easy' | 'medium' | 'hard';
+
 function isPosSafe(player: Player, pos: TokenPos): boolean {
   if (pos < 0 || pos >= 51) return true;
   const g = (PLAYER_OFFSET[player] + pos) % 52;
@@ -24,15 +26,36 @@ function wouldCapture(state: GameState, player: Player, tokenIdx: number, newPos
   return false;
 }
 
-// Returns the token index the AI should move, or -1 if no valid moves.
-// Strategy (highest priority first):
-//  1. Win the game (reach position 56)
-//  2. Capture an opponent token
-//  3. Enter home column (pos 51+)
-//  4. Land on a safe square
-//  5. Exit home base (when dice = 6)
-//  6. Advance the most-progressed token
-export function getAIMove(state: GameState): number {
+// Hard AI: check if landing on newPos puts us in danger of being captured next turn
+function wouldBeVulnerable(state: GameState, player: Player, newPos: TokenPos): boolean {
+  if (isPosSafe(player, newPos) || newPos < 0 || newPos > 50) return false;
+  const landCoords = getCoords(player, newPos, 0); // rough check
+
+  for (const opp of state.players) {
+    if (opp === player) continue;
+    for (let i = 0; i < 4; i++) {
+      const oppPos = state.tokens[opp][i];
+      if (oppPos < 0 || oppPos >= 51) continue;
+      // If opponent could roll 1–6 and land exactly on our new position
+      for (let dice = 1; dice <= 6; dice++) {
+        const oppNewPos = oppPos + dice;
+        if (oppNewPos > 50) continue;
+        const oppCoords = getCoords(opp, oppNewPos, i);
+        if (oppCoords.r === landCoords.r && oppCoords.c === landCoords.c) return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Returns the token index the AI should move, or -1 if no valid moves.
+ *
+ * Easy   — random valid move (beginner-friendly, makes mistakes)
+ * Medium — score-based (current balanced strategy)
+ * Hard   — score-based + avoids landing in vulnerable positions
+ */
+export function getAIMove(state: GameState, difficulty: AIDifficulty = 'medium'): number {
   const player = state.players[state.currentPlayerIdx];
   const dice = state.diceValue!;
   const valid = getValidMoves(state, player, dice);
@@ -40,14 +63,19 @@ export function getAIMove(state: GameState): number {
   if (valid.length === 0) return -1;
   if (valid.length === 1) return valid[0];
 
+  // Easy: just pick randomly
+  if (difficulty === 'easy') {
+    return valid[Math.floor(Math.random() * valid.length)];
+  }
+
+  // Medium / Hard: score-based selection
   let best = valid[0];
   let bestScore = -Infinity;
 
   for (const tokenIdx of valid) {
     const pos = state.tokens[player][tokenIdx];
     const newPos: TokenPos = pos === -1 ? 0 : pos + dice;
-    // Base score = progress on board
-    let score = newPos;
+    let score = newPos; // base = progress
 
     if (newPos === WIN_POS) {
       score += 200;
@@ -58,8 +86,16 @@ export function getAIMove(state: GameState): number {
     } else if (isPosSafe(player, newPos)) {
       score += 20;
     } else if (pos === -1) {
-      // Exiting base is worth a little bonus so AI doesn't stall
       score += 10;
+    }
+
+    if (difficulty === 'hard') {
+      // Penalise landing where an opponent can capture us next turn
+      if (!isPosSafe(player, newPos) && wouldBeVulnerable(state, player, newPos)) {
+        score -= 45;
+      }
+      // Hard AI prefers moving the token furthest ahead if no threats
+      score += pos * 0.5;
     }
 
     if (score > bestScore) {

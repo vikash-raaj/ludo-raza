@@ -16,9 +16,11 @@ export interface GameState {
   winner: Player | null;
   consecutiveSixes: number;
   computerPlayers: Player[];
+  quickMode: boolean;
 }
 
 export type GameAction =
   | { type: 'ROLL_DICE' }
   | { type: 'MOVE_TOKEN'; tokenIdx: number }
-  | { type: 'NEW_GAME'; players: Player[]; computerPlayers: Player[] };
+  | { type: 'SKIP_TURN' }
+  | { type: 'NEW_GAME'; players: Player[]; computerPlayers: Player[]; quickMode?: boolean };

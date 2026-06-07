@@ -35,6 +35,9 @@ const HAPTICS: Record<SoundEvent, () => void> = {
 
 let _pool: Partial<Record<SoundEvent, Audio.Sound>> = {};
 let _ready = false;
+let _hapticsOn = true;
+
+export function setHapticsEnabled(on: boolean): void { _hapticsOn = on; }
 
 export async function initSounds(): Promise<void> {
   if (_ready) return;
@@ -65,7 +68,7 @@ export async function unloadSounds(): Promise<void> {
 }
 
 export function playSound(event: SoundEvent): void {
-  try { HAPTICS[event](); } catch {}
+  if (_hapticsOn) { try { HAPTICS[event](); } catch {} }
   const sound = _pool[event];
   if (sound) {
     sound.setPositionAsync(0).then(() => sound.playAsync()).catch(() => {});
