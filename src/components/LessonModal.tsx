@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SNAKE_LESSONS, LADDER_LESSONS } from '../constants/learningContent';
+import { shade } from '../constants/gloss';
 
 interface Props {
   visible: boolean;
@@ -36,28 +38,32 @@ export default function LessonModal({ visible, type, cell, onClose }: Props) {
   const emoji    = isSnake ? '🐍' : '🪜';
 
   return (
-    <Animated.View
-      style={[styles.container, { backgroundColor: bgColor, opacity, transform: [{ translateY: slideY }] }]}
-    >
-      <TouchableOpacity style={styles.inner} onPress={onClose} activeOpacity={0.9}>
-        <Text style={styles.emoji}>{emoji}</Text>
-        <View style={styles.textCol}>
-          <Text style={styles.title}>{lesson.title}</Text>
-          <Text style={styles.body}>{lesson.body}</Text>
-          <Text style={styles.tap}>Tap to dismiss</Text>
-        </View>
-      </TouchableOpacity>
+    <Animated.View style={[styles.wrap, { opacity, transform: [{ translateY: slideY }] }]}>
+      <LinearGradient
+        colors={[shade(bgColor, 18), bgColor, shade(bgColor, -20)]}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+        style={styles.container}
+      >
+        <View style={styles.sheen} pointerEvents="none" />
+        <TouchableOpacity style={styles.inner} onPress={onClose} activeOpacity={0.9}>
+          <View style={styles.emojiBadge}>
+            <Text style={styles.emoji}>{emoji}</Text>
+          </View>
+          <View style={styles.textCol}>
+            <Text style={styles.title}>{lesson.title}</Text>
+            <Text style={styles.body}>{lesson.body}</Text>
+            <Text style={styles.tap}>Tap to dismiss</Text>
+          </View>
+        </TouchableOpacity>
+      </LinearGradient>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  wrap: {
     position: 'absolute',
     bottom: 0, left: 0, right: 0,
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    padding: 18,
     zIndex: 200,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
@@ -65,8 +71,24 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 16,
   },
-  inner: { flexDirection: 'row', gap: 14, alignItems: 'flex-start' },
-  emoji:  { fontSize: 38 },
+  container: {
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    padding: 18,
+    overflow: 'hidden',
+  },
+  sheen: {
+    position: 'absolute', top: 0, left: 0, right: 0, height: '35%',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  inner: { flexDirection: 'row', gap: 14, alignItems: 'center' },
+  emojiBadge: {
+    width: 52, height: 52, borderRadius: 26,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)',
+  },
+  emoji:  { fontSize: 26 },
   textCol:{ flex: 1, gap: 4 },
   title:  { fontSize: 18, fontWeight: '900', color: 'white' },
   body:   { fontSize: 13, color: 'rgba(255,255,255,0.88)', lineHeight: 19 },

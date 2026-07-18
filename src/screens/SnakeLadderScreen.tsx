@@ -5,7 +5,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Circle, Ellipse, G, Line, Path, Rect, Text as SvgText } from 'react-native-svg';
+import Svg, {
+  Circle, Defs, Ellipse, G, Line, LinearGradient as SvgLinearGradient,
+  Path, RadialGradient, Rect, Stop, Text as SvgText,
+} from 'react-native-svg';
 
 import ThinkingDots from '../components/ThinkingDots';
 import LessonModal from '../components/LessonModal';
@@ -13,6 +16,7 @@ import MathChallengeModal from '../components/MathChallengeModal';
 import WinOverlay from '../components/WinOverlay';
 
 import { AppTheme } from '../constants/themes';
+import { PLAYER_GLOSS, shade } from '../constants/gloss';
 import { WIN_TIPS, LOSS_TIPS } from '../constants/learningContent';
 import { playSound } from '../utils/soundManager';
 import { showInterstitialAd } from '../utils/adService';
@@ -82,20 +86,54 @@ function LadderSVG({ bottom, top }: { bottom: number; top: number }) {
   return <G>{rails}{rungNodes}</G>;
 }
 
+// ── Glossy board gradients ────────────────────────────────────────────────────
+// Static defs — no runtime props — so they're built once and shared by every
+// cell / token drawn on the board.
+const BOARD_DEFS = (
+  <Defs>
+    <RadialGradient id="tokenYou" cx="32%" cy="26%" r="78%">
+      <Stop offset="0%" stopColor={PLAYER_GLOSS.blue.light} />
+      <Stop offset="50%" stopColor={PLAYER_GLOSS.blue.base} />
+      <Stop offset="100%" stopColor={PLAYER_GLOSS.blue.dark} />
+    </RadialGradient>
+    <RadialGradient id="tokenCom" cx="32%" cy="26%" r="78%">
+      <Stop offset="0%" stopColor={PLAYER_GLOSS.red.light} />
+      <Stop offset="50%" stopColor={PLAYER_GLOSS.red.base} />
+      <Stop offset="100%" stopColor={PLAYER_GLOSS.red.dark} />
+    </RadialGradient>
+    <SvgLinearGradient id="cellLight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <Stop offset="0%" stopColor="#FBF6EC" />
+      <Stop offset="100%" stopColor="#F0E6D2" />
+    </SvgLinearGradient>
+    <SvgLinearGradient id="cellDark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <Stop offset="0%" stopColor="#EDE0CC" />
+      <Stop offset="100%" stopColor="#DFCBAA" />
+    </SvgLinearGradient>
+    <RadialGradient id="cellSnake" cx="35%" cy="30%" r="80%">
+      <Stop offset="0%" stopColor="#FFCDD2" />
+      <Stop offset="100%" stopColor="#EF9A9A" />
+    </RadialGradient>
+    <RadialGradient id="cellLadder" cx="35%" cy="30%" r="80%">
+      <Stop offset="0%" stopColor="#C8E6C9" />
+      <Stop offset="100%" stopColor="#A5D6A7" />
+    </RadialGradient>
+  </Defs>
+);
+
 // ── Token pin ──────────────────────────────────────────────────────────────────
 function makePinPath(cx: number, cy: number, r: number): string {
   const hcy = cy - r * 0.12;
   const sx  = r * 0.88, sy  = hcy + r * 0.52, py  = hcy + r * 1.78;
   return `M ${cx - sx},${sy} A ${r} ${r} 0 1 1 ${cx + sx},${sy} L ${cx},${py} Z`;
 }
-function Token({ cx, cy, color }: { cx: number; cy: number; color: string }) {
+function Token({ cx, cy, gradId }: { cx: number; cy: number; gradId: 'tokenYou' | 'tokenCom' }) {
   const r = CS * 0.28, hcy = cy - r * 0.12;
   return (
     <G>
-      <Ellipse cx={cx} cy={hcy + r * 1.85} rx={r * 0.6} ry={r * 0.16} fill="rgba(0,0,0,0.2)" />
-      <Path d={makePinPath(cx, cy, r)} fill={color} stroke="rgba(0,0,0,0.3)" strokeWidth={1.2} />
-      <Circle cx={cx} cy={hcy} r={r * 0.56} fill="none" stroke="rgba(0,0,0,0.28)" strokeWidth={r * 0.28} />
-      <Circle cx={cx - r * 0.34} cy={hcy - r * 0.4} r={r * 0.26} fill="rgba(255,255,255,0.7)" />
+      <Ellipse cx={cx} cy={hcy + r * 1.9} rx={r * 0.64} ry={r * 0.18} fill="rgba(0,0,0,0.28)" />
+      <Path d={makePinPath(cx, cy, r)} fill={`url(#${gradId})`} stroke="rgba(0,0,0,0.3)" strokeWidth={1.2} />
+      <Circle cx={cx} cy={hcy} r={r * 0.56} fill="none" stroke="rgba(0,0,0,0.22)" strokeWidth={r * 0.22} />
+      <Circle cx={cx - r * 0.34} cy={hcy - r * 0.4} r={r * 0.26} fill="rgba(255,255,255,0.55)" />
     </G>
   );
 }
@@ -300,8 +338,8 @@ export default function SnakeLadderScreen({ onHome, playerName, player2Name, the
     const { row, col } = cellCoords(cell);
     const isSnakeHead    = !!SNAKES[cell];
     const isLadderBottom = !!LADDERS[cell];
-    const fill = isSnakeHead ? '#FFCDD2' : isLadderBottom ? '#C8E6C9'
-      : (row + col) % 2 === 0 ? '#F5F0E8' : '#EDE0D0';
+    const fill = isSnakeHead ? 'url(#cellSnake)' : isLadderBottom ? 'url(#cellLadder)'
+      : (row + col) % 2 === 0 ? 'url(#cellLight)' : 'url(#cellDark)';
     cells.push(
       <Rect key={`c${cell}`} x={col * CS} y={row * CS} width={CS} height={CS}
         fill={fill} stroke={theme.gridStroke} strokeWidth={0.5} />
@@ -382,24 +420,34 @@ export default function SnakeLadderScreen({ onHome, playerName, player2Name, the
 
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={handleHome} style={styles.backBtn}>
+          <TouchableOpacity onPress={handleHome} style={styles.backBtn} activeOpacity={0.75}>
             <Text style={styles.backTxt}>← Menu</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>🐍 Snakes & Ladders</Text>
-          <TouchableOpacity onPress={handleReset} style={styles.backBtn}>
+          <View style={styles.titleBadge}>
+            <Text style={styles.title}>🐍 Snakes & Ladders</Text>
+          </View>
+          <TouchableOpacity onPress={handleReset} style={styles.backBtn} activeOpacity={0.75}>
             <Text style={styles.backTxt}>↺ New</Text>
           </TouchableOpacity>
         </View>
 
         {/* Message bar */}
-        <View style={[styles.msgBar, { backgroundColor: turn === 0 ? '#1565C0' : '#6A1B9A' }]}>
+        <LinearGradient
+          colors={turn === 0
+            ? [shade('#1565C0', 22), '#1565C0', shade('#1565C0', -22)]
+            : [shade('#6A1B9A', 22), '#6A1B9A', shade('#6A1B9A', -22)]}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          style={styles.msgBar}
+        >
+          <View style={styles.msgSheen} pointerEvents="none" />
           <Text style={styles.msgTxt}>{message}</Text>
           {turn === 1 && phase === 'idle' && <ThinkingDots color="rgba(255,255,255,0.8)" />}
-        </View>
+        </LinearGradient>
 
         {/* Board */}
         <View style={styles.boardWrap}>
           <Svg width={BOARD_SIZE} height={BOARD_SIZE}>
+            {BOARD_DEFS}
             <Rect x={0} y={0} width={BOARD_SIZE} height={BOARD_SIZE} fill="#F5F0E8" />
             {cells}
             {/* Ladders */}
@@ -416,35 +464,50 @@ export default function SnakeLadderScreen({ onHome, playerName, player2Name, the
                 <Circle cx={cellCenter(Number(head)).x + CS * 0.07} cy={cellCenter(Number(head)).y - CS * 0.05} r={CS * 0.05} fill="#F44336" />
               </G>
             ))}
-            <Rect x={0} y={0} width={BOARD_SIZE} height={BOARD_SIZE} fill="none" stroke={theme.boardBorder} strokeWidth={3} />
-            {comCoords && <Token cx={comCoords.x + CS * 0.15} cy={comCoords.y + CS * 0.05} color="#E53935" />}
-            {youCoords && <Token cx={youCoords.x - CS * 0.15} cy={youCoords.y + CS * 0.05} color="#1565C0" />}
+            <Rect x={1} y={1} width={BOARD_SIZE - 2} height={BOARD_SIZE - 2} fill="none" stroke={theme.boardBorder} strokeWidth={4} rx={6} />
+            <Rect x={5} y={5} width={BOARD_SIZE - 10} height={BOARD_SIZE - 10} fill="none" stroke="#FFFFFF" strokeOpacity={0.35} strokeWidth={1.5} rx={3} />
+            {comCoords && <Token cx={comCoords.x + CS * 0.15} cy={comCoords.y + CS * 0.05} gradId="tokenCom" />}
+            {youCoords && <Token cx={youCoords.x - CS * 0.15} cy={youCoords.y + CS * 0.05} gradId="tokenYou" />}
           </Svg>
         </View>
 
         {/* Controls */}
         <View style={styles.controls}>
           <View style={[styles.playerPanel, turn === 0 && phase !== 'gameover' && styles.activePanel]}>
-            <Text style={styles.playerPinEmoji}>📍</Text>
+            <LinearGradient
+              colors={[PLAYER_GLOSS.blue.light, PLAYER_GLOSS.blue.base, PLAYER_GLOSS.blue.dark]}
+              start={{ x: 0.2, y: 0 }} end={{ x: 0.9, y: 1 }} style={styles.playerAvatar}
+            >
+              <View style={styles.avatarSheen} />
+              <Text style={styles.playerPinEmoji}>📍</Text>
+            </LinearGradient>
             <Text style={[styles.playerLabel, { color: '#1565C0' }]}>{youName.toUpperCase()}</Text>
             <Text style={styles.playerPos}>{youPos > 0 ? youPos : 'Start'}</Text>
           </View>
 
           <TouchableOpacity onPress={handleRoll} disabled={phase !== 'idle'} activeOpacity={0.8}>
             <Animated.View style={[
-              styles.diceBox,
               { transform: [{ scale: diceAnim }] },
               phase !== 'idle' && styles.diceDisabled,
             ]}>
-              <Text style={styles.diceEmoji}>{isDiceSpinning ? (dice ? diceEmoji : '🎲') : diceEmoji}</Text>
-              <Text style={styles.diceLabel}>
-                {phase === 'idle' ? 'ROLL' : dice ? `${dice}` : '···'}
-              </Text>
+              <LinearGradient colors={['#FFFFFF', '#F3F4FA', '#DCE0F0']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.diceBox}>
+                <View style={styles.diceSheen} pointerEvents="none" />
+                <Text style={styles.diceEmoji}>{isDiceSpinning ? (dice ? diceEmoji : '🎲') : diceEmoji}</Text>
+                <Text style={styles.diceLabel}>
+                  {phase === 'idle' ? 'ROLL' : dice ? `${dice}` : '···'}
+                </Text>
+              </LinearGradient>
             </Animated.View>
           </TouchableOpacity>
 
           <View style={[styles.playerPanel, turn === 1 && phase !== 'gameover' && styles.activePanel]}>
-            <Text style={styles.playerPinEmoji}>📍</Text>
+            <LinearGradient
+              colors={[PLAYER_GLOSS.red.light, PLAYER_GLOSS.red.base, PLAYER_GLOSS.red.dark]}
+              start={{ x: 0.2, y: 0 }} end={{ x: 0.9, y: 1 }} style={styles.playerAvatar}
+            >
+              <View style={styles.avatarSheen} />
+              <Text style={styles.playerPinEmoji}>📍</Text>
+            </LinearGradient>
             <Text style={[styles.playerLabel, { color: '#C62828' }]}>
               {twoPlayer ? p2Label.toUpperCase() : 'COM 🤖'}
             </Text>
@@ -491,14 +554,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 12, paddingVertical: 8,
   },
-  backBtn: { padding: 6 },
+  backBtn: {
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+  },
   backTxt: { color: '#CE93D8', fontSize: 13, fontWeight: '700' },
-  title:   { color: 'white', fontSize: 16, fontWeight: '900', letterSpacing: 1 },
+  titleBadge: {
+    paddingHorizontal: 14, paddingVertical: 5, borderRadius: 14,
+    backgroundColor: 'rgba(255,214,0,0.14)',
+    borderWidth: 1, borderColor: 'rgba(255,214,0,0.35)',
+  },
+  title: {
+    color: '#FFD600', fontSize: 14, fontWeight: '900', letterSpacing: 1,
+    textShadowColor: 'rgba(0,0,0,0.4)', textShadowRadius: 4, textShadowOffset: { width: 0, height: 1 },
+  },
 
   msgBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    paddingVertical: 6, paddingHorizontal: 16, marginHorizontal: 12, borderRadius: 20,
-    marginBottom: 8,
+    paddingVertical: 7, paddingHorizontal: 16, marginHorizontal: 12, borderRadius: 20,
+    marginBottom: 8, overflow: 'hidden', position: 'relative',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 5, elevation: 4,
+  },
+  msgSheen: {
+    position: 'absolute', top: 2, left: '10%', right: '10%', height: '45%',
+    borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.25)',
   },
   msgTxt: { color: 'white', fontWeight: '700', fontSize: 13 },
 
@@ -517,22 +597,36 @@ const styles = StyleSheet.create({
 
   playerPanel: {
     alignItems: 'center', paddingVertical: 8, paddingHorizontal: 16,
-    borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.12)', minWidth: 80,
+    borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.12)', minWidth: 80, gap: 4,
   },
   activePanel: {
     backgroundColor: 'rgba(255,255,255,0.25)',
     borderWidth: 2, borderColor: '#FFD600',
     shadowColor: '#FFD600', shadowOpacity: 0.5, shadowRadius: 8, elevation: 4,
   },
-  playerPinEmoji: { fontSize: 22 },
+  playerAvatar: {
+    width: 34, height: 34, borderRadius: 17,
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.6)',
+  },
+  avatarSheen: {
+    position: 'absolute', top: -8, left: -6, width: 30, height: 18,
+    borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.45)',
+    transform: [{ rotate: '-20deg' }],
+  },
+  playerPinEmoji: { fontSize: 15 },
   playerLabel:    { fontSize: 13, fontWeight: '900', letterSpacing: 1 },
   playerPos:      { fontSize: 18, fontWeight: '900', color: 'white' },
 
   diceBox: {
     width: 80, height: 80, borderRadius: 20,
-    backgroundColor: 'white', alignItems: 'center', justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative',
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4, shadowRadius: 8, elevation: 8,
+  },
+  diceSheen: {
+    position: 'absolute', top: 4, left: 8, right: 8, height: '40%',
+    borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.5)',
   },
   diceDisabled: { opacity: 0.55 },
   diceEmoji:    { fontSize: 32 },

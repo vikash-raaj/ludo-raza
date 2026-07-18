@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
-import {
-  Modal, View, Text, TouchableOpacity, StyleSheet,
-  ScrollView, Dimensions,
-} from 'react-native';
-
-const { width: W } = Dimensions.get('window');
+import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { shade } from '../constants/gloss';
 
 interface Slide {
   emoji: string;
@@ -100,8 +97,14 @@ export default function TutorialModal({ visible, gameType, onClose }: TutorialMo
             ))}
           </View>
 
-          <TouchableOpacity style={styles.btn} onPress={handleNext} activeOpacity={0.85}>
-            <Text style={styles.btnText}>{isLast ? "LET'S PLAY! 🎲" : 'NEXT →'}</Text>
+          <TouchableOpacity onPress={handleNext} activeOpacity={0.85} style={styles.btnWrap}>
+            <LinearGradient
+              colors={[shade('#1A237E', 25), '#1A237E', shade('#1A237E', -20)]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.btn}
+            >
+              <View style={styles.btnSheen} />
+              <Text style={styles.btnText}>{isLast ? "LET'S PLAY! 🎲" : 'NEXT →'}</Text>
+            </LinearGradient>
           </TouchableOpacity>
 
           {!isLast && (
@@ -133,9 +136,15 @@ const styles = StyleSheet.create({
   dots:   { flexDirection: 'row', gap: 7, marginTop: 4 },
   dot:    { width: 8, height: 8, borderRadius: 4, backgroundColor: '#CFD8DC' },
   dotActive: { backgroundColor: '#1A237E', width: 22 },
+  btnWrap: { marginTop: 4 },
   btn: {
-    backgroundColor: '#1A237E', paddingVertical: 14,
-    paddingHorizontal: 36, borderRadius: 28, marginTop: 4,
+    paddingVertical: 14, paddingHorizontal: 36, borderRadius: 28,
+    overflow: 'hidden', position: 'relative',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6,
+  },
+  btnSheen: {
+    position: 'absolute', top: 3, left: 16, right: 16, height: '42%',
+    borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.18)',
   },
   btnText:  { color: 'white', fontSize: 16, fontWeight: '900', letterSpacing: 1.5 },
   skipBtn:  { paddingVertical: 6 },

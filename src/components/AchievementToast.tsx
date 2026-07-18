@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Achievement } from '../constants/achievements';
+import { GOLD_GLOSS } from '../constants/gloss';
 
 interface Props {
   achievement: Achievement | null;
@@ -34,7 +36,13 @@ export default function AchievementToast({ achievement, onDone }: Props) {
 
   return (
     <Animated.View style={[styles.toast, { opacity, transform: [{ translateY }] }]}>
-      <Text style={styles.emoji}>{achievement.emoji}</Text>
+      <LinearGradient
+        colors={[GOLD_GLOSS.light, GOLD_GLOSS.base, GOLD_GLOSS.dark]}
+        start={{ x: 0.2, y: 0 }} end={{ x: 0.9, y: 1 }} style={styles.emojiBadge}
+      >
+        <View style={styles.emojiSheen} />
+        <Text style={styles.emoji}>{achievement.emoji}</Text>
+      </LinearGradient>
       <View style={styles.text}>
         <Text style={styles.label}>Achievement Unlocked!</Text>
         <Text style={styles.title}>{achievement.title}</Text>
@@ -64,7 +72,17 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#FFD600',
   },
-  emoji: { fontSize: 36 },
+  emojiBadge: {
+    width: 52, height: 52, borderRadius: 26,
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.7)',
+  },
+  emojiSheen: {
+    position: 'absolute', top: -10, left: -6, width: 42, height: 22,
+    borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.5)',
+    transform: [{ rotate: '-20deg' }],
+  },
+  emoji: { fontSize: 26 },
   text:  { flex: 1, gap: 2 },
   label: { fontSize: 10, color: '#FFD600', fontWeight: '800', letterSpacing: 1.5, textTransform: 'uppercase' },
   title: { fontSize: 16, color: 'white', fontWeight: '900' },

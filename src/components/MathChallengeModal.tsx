@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Modal } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { generateMathQuestion } from '../constants/learningContent';
+import { shade } from '../constants/gloss';
 
 interface Props {
   visible: boolean;
@@ -59,22 +61,22 @@ export default function MathChallengeModal({ visible, diceValue, onResult }: Pro
               const isSelected = selected === c;
               const correct    = answered && c === q.answer;
               const wrong      = answered && isSelected && c !== q.answer;
+              const glossColor = correct ? '#43A047' : wrong ? '#E53935' : null;
               return (
-                <TouchableOpacity
-                  key={i}
-                  style={[
-                    styles.choice,
-                    correct && styles.choiceCorrect,
-                    wrong   && styles.choiceWrong,
-                    isSelected && !answered && styles.choiceSelected,
-                  ]}
-                  onPress={() => handleChoice(c)}
-                  activeOpacity={0.8}
-                  disabled={answered}
-                >
-                  <Text style={[styles.choiceTxt, (correct || wrong) && styles.choiceTxtLight]}>
-                    {c}
-                  </Text>
+                <TouchableOpacity key={i} onPress={() => handleChoice(c)} activeOpacity={0.8} disabled={answered}>
+                  {glossColor ? (
+                    <LinearGradient
+                      colors={[shade(glossColor, 25), glossColor, shade(glossColor, -25)]}
+                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.choice}
+                    >
+                      <View style={styles.choiceSheen} />
+                      <Text style={[styles.choiceTxt, styles.choiceTxtLight]}>{c}</Text>
+                    </LinearGradient>
+                  ) : (
+                    <View style={[styles.choice, isSelected && styles.choiceSelected]}>
+                      <Text style={styles.choiceTxt}>{c}</Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
               );
             })}
@@ -112,10 +114,13 @@ const styles = StyleSheet.create({
     minWidth: 72, paddingVertical: 14, paddingHorizontal: 20,
     borderRadius: 16, backgroundColor: '#EEF0FF',
     borderWidth: 2, borderColor: '#C5CAE9', alignItems: 'center',
+    overflow: 'hidden', position: 'relative',
+  },
+  choiceSheen: {
+    position: 'absolute', top: 3, left: 6, right: 6, height: '40%',
+    borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.3)',
   },
   choiceSelected:{ borderColor: '#1A237E', backgroundColor: '#E8EAF6' },
-  choiceCorrect: { backgroundColor: '#43A047', borderColor: '#43A047' },
-  choiceWrong:   { backgroundColor: '#E53935', borderColor: '#E53935' },
   choiceTxt:     { fontSize: 22, fontWeight: '900', color: '#1A237E' },
   choiceTxtLight:{ color: 'white' },
   result:        { fontSize: 16, fontWeight: '900' },

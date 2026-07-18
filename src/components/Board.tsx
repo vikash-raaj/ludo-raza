@@ -1,15 +1,56 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Animated } from 'react-native';
-import Svg, { Circle, Ellipse, G, Line, Path, Polygon, Rect } from 'react-native-svg';
+import Svg, { Circle, Defs, Ellipse, G, Line, LinearGradient, Path, Polygon, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { MAIN_PATH, SAFE_INDICES, TOKEN_BASE_CELLS } from '../constants/board';
 import { Player, ALL_PLAYERS, PLAYER_COLORS, PLAYER_LIGHT } from '../constants/players';
+import { PLAYER_GLOSS, PLAYER_LIGHTER } from '../constants/gloss';
 import { AppTheme } from '../constants/themes';
 import { TokenShape } from '../utils/storage';
 import { GameState, TokenPos } from '../types';
 import { getCoords, WIN_POS } from '../logic/gameLogic';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+// Static gradient defs — ids only depend on player color ramps, so they're
+// built once and reused by every cell / token / home slot on the board.
+const BOARD_DEFS = (
+  <Defs>
+    {ALL_PLAYERS.map(p => (
+      <RadialGradient key={`cg-${p}`} id={`cellgrad-${p}`} cx="35%" cy="28%" r="80%">
+        <Stop offset="0%" stopColor={PLAYER_LIGHTER[p]} />
+        <Stop offset="100%" stopColor={PLAYER_LIGHT[p]} />
+      </RadialGradient>
+    ))}
+    {ALL_PLAYERS.map(p => (
+      <LinearGradient key={`pg-${p}`} id={`pathgrad-${p}`} x1="0%" y1="0%" x2="100%" y2="100%">
+        <Stop offset="0%" stopColor={PLAYER_GLOSS[p].light} />
+        <Stop offset="55%" stopColor={PLAYER_GLOSS[p].base} />
+        <Stop offset="100%" stopColor={PLAYER_GLOSS[p].dark} />
+      </LinearGradient>
+    ))}
+    {ALL_PLAYERS.map(p => (
+      <RadialGradient key={`tg-${p}`} id={`tokengrad-${p}`} cx="32%" cy="26%" r="78%">
+        <Stop offset="0%" stopColor={PLAYER_GLOSS[p].light} />
+        <Stop offset="50%" stopColor={PLAYER_GLOSS[p].base} />
+        <Stop offset="100%" stopColor={PLAYER_GLOSS[p].dark} />
+      </RadialGradient>
+    ))}
+    <RadialGradient id="socket" cx="50%" cy="40%" r="65%">
+      <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.95} />
+      <Stop offset="55%" stopColor="#FFFFFF" stopOpacity={0.12} />
+      <Stop offset="100%" stopColor="#000000" stopOpacity={0.22} />
+    </RadialGradient>
+    <RadialGradient id="stargrad" cx="35%" cy="30%" r="75%">
+      <Stop offset="0%" stopColor="#FFF9C4" />
+      <Stop offset="100%" stopColor="#FFA000" />
+    </RadialGradient>
+    <RadialGradient id="centerhub" cx="50%" cy="40%" r="70%">
+      <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.9} />
+      <Stop offset="100%" stopColor="#FFFFFF" stopOpacity={0} />
+    </RadialGradient>
+  </Defs>
+);
 
 interface BoardProps {
   state: GameState;
@@ -59,14 +100,14 @@ function makePawnPath(cx: number, cy: number, r: number): string {
 }
 
 function cellFill(r: number, c: number): string {
-  if (r < 6 && c < 6) return PLAYER_LIGHT.green;
-  if (r < 6 && c > 8) return PLAYER_LIGHT.yellow;
-  if (r > 8 && c < 6) return PLAYER_LIGHT.red;
-  if (r > 8 && c > 8) return PLAYER_LIGHT.blue;
-  if (c === 7 && r >= 9 && r <= 13) return PLAYER_COLORS.red;
-  if (r === 7 && c >= 1 && c <= 5)  return PLAYER_COLORS.green;
-  if (c === 7 && r >= 1 && r <= 5)  return PLAYER_COLORS.yellow;
-  if (r === 7 && c >= 9 && c <= 13) return PLAYER_COLORS.blue;
+  if (r < 6 && c < 6) return 'url(#cellgrad-green)';
+  if (r < 6 && c > 8) return 'url(#cellgrad-yellow)';
+  if (r > 8 && c < 6) return 'url(#cellgrad-red)';
+  if (r > 8 && c > 8) return 'url(#cellgrad-blue)';
+  if (c === 7 && r >= 9 && r <= 13) return 'url(#pathgrad-red)';
+  if (r === 7 && c >= 1 && c <= 5)  return 'url(#pathgrad-green)';
+  if (c === 7 && r >= 1 && r <= 5)  return 'url(#pathgrad-yellow)';
+  if (r === 7 && c >= 9 && c <= 13) return 'url(#pathgrad-blue)';
   if (r === 7 && c === 7) return '#FFFFFF';
   return '#FFFFFF';
 }
@@ -164,7 +205,7 @@ export default function Board({ state, validTokens, onTokenPress, size, tokenOve
       cells.push(
         <Rect key={`c${r}_${c}`}
           x={c * cs} y={r * cs} width={cs} height={cs}
-          fill={entry ? PLAYER_LIGHT[entry] : fill}
+          fill={entry ? `url(#cellgrad-${entry})` : fill}
         />
       );
     }
@@ -182,12 +223,13 @@ export default function Board({ state, validTokens, onTokenPress, size, tokenOve
     const x = colStart * cs;
     const y = rowStart * cs;
     homeBases.push(
-      <Rect key={`hb-outer-${player}`} x={x} y={y} width={6*cs} height={6*cs} fill={PLAYER_LIGHT[player]} />
+      <Rect key={`hb-outer-${player}`} x={x} y={y} width={6*cs} height={6*cs} fill={`url(#cellgrad-${player})`} />
     );
     homeBases.push(
       <Rect key={`hb-inner-${player}`}
         x={x + cs} y={y + cs} width={4*cs} height={4*cs}
-        fill="white" rx={cs * 0.25}
+        fill="white" rx={cs * 0.3}
+        stroke={PLAYER_COLORS[player]} strokeOpacity={0.35} strokeWidth={1.5}
       />
     );
     const slots = TOKEN_BASE_CELLS[player];
@@ -196,7 +238,13 @@ export default function Board({ state, validTokens, onTokenPress, size, tokenOve
       homeBases.push(
         <Circle key={`hb-slot-${player}-${i}`}
           cx={(c + 0.5) * cs} cy={(r + 0.5) * cs} r={cs * 0.85}
-          fill={PLAYER_LIGHT[player]} stroke={PLAYER_COLORS[player]} strokeWidth={2}
+          fill={PLAYER_LIGHT[player]} stroke={PLAYER_COLORS[player]} strokeWidth={2.5}
+        />
+      );
+      homeBases.push(
+        <Circle key={`hb-slot-shade-${player}-${i}`}
+          cx={(c + 0.5) * cs} cy={(r + 0.5) * cs} r={cs * 0.85}
+          fill="url(#socket)"
         />
       );
     }
@@ -207,11 +255,14 @@ export default function Board({ state, validTokens, onTokenPress, size, tokenOve
   const stroke = theme?.gridStroke ?? '#BDBDBD';
   const border = theme?.boardBorder ?? '#424242';
   for (let r = 0; r <= 15; r++)
-    gridLines.push(<Line key={`hl${r}`} x1={0} y1={r*cs} x2={size} y2={r*cs} stroke={stroke} strokeWidth={0.5} />);
+    gridLines.push(<Line key={`hl${r}`} x1={0} y1={r*cs} x2={size} y2={r*cs} stroke={stroke} strokeWidth={0.5} strokeOpacity={0.6} />);
   for (let c = 0; c <= 15; c++)
-    gridLines.push(<Line key={`vl${c}`} x1={c*cs} y1={0} x2={c*cs} y2={size} stroke={stroke} strokeWidth={0.5} />);
+    gridLines.push(<Line key={`vl${c}`} x1={c*cs} y1={0} x2={c*cs} y2={size} stroke={stroke} strokeWidth={0.5} strokeOpacity={0.6} />);
   gridLines.push(
-    <Rect key="border" x={0} y={0} width={size} height={size} fill="none" stroke={border} strokeWidth={2} />
+    <Rect key="border-outer" x={1} y={1} width={size - 2} height={size - 2} fill="none" stroke={border} strokeWidth={4} rx={6} />
+  );
+  gridLines.push(
+    <Rect key="border-inner" x={5} y={5} width={size - 10} height={size - 10} fill="none" stroke="#FFFFFF" strokeOpacity={0.35} strokeWidth={1.5} rx={3} />
   );
 
   // --- Safe stars ---
@@ -221,17 +272,22 @@ export default function Board({ state, validTokens, onTokenPress, size, tokenOve
     const cx = (c + 0.5) * cs;
     const cy = (r + 0.5) * cs;
     safeMarkers.push(
-      <Polygon key={`safe${idx}`} points={starPoints(cx, cy, 6, cs * 0.38, cs * 0.18)} fill={theme?.safeColor ?? '#FFD600'} opacity={0.8} />
+      <G key={`safe${idx}`}>
+        <Circle cx={cx} cy={cy} r={cs * 0.42} fill="#FFFFFF" opacity={0.35} />
+        <Polygon points={starPoints(cx, cy, 6, cs * 0.38, cs * 0.18)} fill="url(#stargrad)" stroke="#B45F06" strokeWidth={0.6} opacity={0.95} />
+      </G>
     );
   });
 
   // --- Center triangles ---
   const x0 = 7 * cs, y0 = 7 * cs, cxc = 7.5 * cs, cyc = 7.5 * cs, x1 = 8 * cs, y1 = 8 * cs;
   const centerTris: React.ReactNode[] = [
-    <Polygon key="ct-r" points={`${cxc},${cyc} ${x1},${y0} ${x1},${y1}`} fill={PLAYER_COLORS.blue} />,
-    <Polygon key="ct-l" points={`${cxc},${cyc} ${x0},${y0} ${x0},${y1}`} fill={PLAYER_COLORS.green} />,
-    <Polygon key="ct-t" points={`${cxc},${cyc} ${x0},${y0} ${x1},${y0}`} fill={PLAYER_COLORS.yellow} />,
-    <Polygon key="ct-b" points={`${cxc},${cyc} ${x0},${y1} ${x1},${y1}`} fill={PLAYER_COLORS.red} />,
+    <Polygon key="ct-r" points={`${cxc},${cyc} ${x1},${y0} ${x1},${y1}`} fill="url(#pathgrad-blue)" />,
+    <Polygon key="ct-l" points={`${cxc},${cyc} ${x0},${y0} ${x0},${y1}`} fill="url(#pathgrad-green)" />,
+    <Polygon key="ct-t" points={`${cxc},${cyc} ${x0},${y0} ${x1},${y0}`} fill="url(#pathgrad-yellow)" />,
+    <Polygon key="ct-b" points={`${cxc},${cyc} ${x0},${y1} ${x1},${y1}`} fill="url(#pathgrad-red)" />,
+    <Rect key="ct-frame" x={x0} y={y0} width={x1 - x0} height={y1 - y0} fill="none" stroke="#FFD600" strokeWidth={1.5} opacity={0.85} />,
+    <Circle key="ct-hub" cx={cxc} cy={cyc} r={(x1 - x0) * 0.22} fill="url(#centerhub)" />,
   ];
 
   // --- Tokens on board ---
@@ -256,10 +312,10 @@ export default function Board({ state, validTokens, onTokenPress, size, tokenOve
 
       const headR    = (count === 1 || t.pos === -1) ? cs * 0.30 : cs * 0.22;
       const headCy   = cy - headR * 0.12;
-      const color    = PLAYER_COLORS[t.player];
+      const color    = `url(#tokengrad-${t.player})`;
       const hitR     = (count === 1) ? cs * 0.46 : cs * 0.30;
       const strokeW  = isSelectable ? 2.5 : 1.2;
-      const stroke   = isSelectable ? '#FFFFFF' : 'rgba(0,0,0,0.30)';
+      const stroke   = isSelectable ? '#FFFFFF' : PLAYER_GLOSS[t.player].dark;
 
       tokenNodes.push(
         <G key={`tok-${t.player}-${t.tokenIdx}`} onPress={() => { if (isSelectable) onTokenPress(t.tokenIdx); }}>
@@ -272,25 +328,25 @@ export default function Board({ state, validTokens, onTokenPress, size, tokenOve
           {tokenShape === 'round' ? (
             // ── Round (classic disc) ──────────────────────────────────
             <G>
-              <Ellipse cx={cx} cy={cy + headR * 0.8} rx={headR * 0.7} ry={headR * 0.18} fill="rgba(0,0,0,0.20)" />
+              <Ellipse cx={cx} cy={cy + headR * 0.85} rx={headR * 0.72} ry={headR * 0.2} fill="rgba(0,0,0,0.28)" />
               <Circle cx={cx} cy={cy} r={headR} fill={color} stroke={stroke} strokeWidth={strokeW} />
-              <Circle cx={cx} cy={cy} r={headR * 0.55} fill="none" stroke="rgba(0,0,0,0.25)" strokeWidth={headR * 0.25} />
-              <Circle cx={cx - headR * 0.34} cy={cy - headR * 0.38} r={headR * 0.26} fill="rgba(255,255,255,0.70)" />
+              <Circle cx={cx} cy={cy} r={headR * 0.55} fill="none" stroke="rgba(0,0,0,0.20)" strokeWidth={headR * 0.2} />
+              <Circle cx={cx - headR * 0.34} cy={cy - headR * 0.38} r={headR * 0.26} fill="rgba(255,255,255,0.55)" />
             </G>
           ) : tokenShape === 'pawn' ? (
             // ── Pawn (chess-piece silhouette) ─────────────────────────
             <G>
-              <Ellipse cx={cx} cy={cy + headR * 1.75} rx={headR * 0.9} ry={headR * 0.18} fill="rgba(0,0,0,0.20)" />
+              <Ellipse cx={cx} cy={cy + headR * 1.8} rx={headR * 0.92} ry={headR * 0.2} fill="rgba(0,0,0,0.28)" />
               <Path d={makePawnPath(cx, cy, headR)} fill={color} stroke={stroke} strokeWidth={strokeW} />
-              <Circle cx={cx - headR * 0.30} cy={cy - headR * 0.60} r={headR * 0.22} fill="rgba(255,255,255,0.65)" />
+              <Circle cx={cx - headR * 0.30} cy={cy - headR * 0.60} r={headR * 0.22} fill="rgba(255,255,255,0.50)" />
             </G>
           ) : (
             // ── Pin (map-pin teardrop, default) ───────────────────────
             <G>
-              <Ellipse cx={cx} cy={headCy + headR * 1.85} rx={headR * 0.62} ry={headR * 0.16} fill="rgba(0,0,0,0.20)" />
+              <Ellipse cx={cx} cy={headCy + headR * 1.9} rx={headR * 0.64} ry={headR * 0.18} fill="rgba(0,0,0,0.28)" />
               <Path d={makePinPath(cx, cy, headR)} fill={color} stroke={stroke} strokeWidth={strokeW} />
-              <Circle cx={cx} cy={headCy} r={headR * 0.56} fill="none" stroke="rgba(0,0,0,0.28)" strokeWidth={headR * 0.28} />
-              <Circle cx={cx - headR * 0.34} cy={headCy - headR * 0.40} r={headR * 0.26} fill="rgba(255,255,255,0.70)" />
+              <Circle cx={cx} cy={headCy} r={headR * 0.56} fill="none" stroke="rgba(0,0,0,0.22)" strokeWidth={headR * 0.22} />
+              <Circle cx={cx - headR * 0.34} cy={headCy - headR * 0.40} r={headR * 0.26} fill="rgba(255,255,255,0.55)" />
             </G>
           )}
         </G>
@@ -363,6 +419,7 @@ export default function Board({ state, validTokens, onTokenPress, size, tokenOve
       shadowOpacity: 0.3, shadowRadius: 8, elevation: 8,
     }}>
       <Svg width={size} height={size}>
+        {BOARD_DEFS}
         {cells}
         {homeBases}
         {gridLines}

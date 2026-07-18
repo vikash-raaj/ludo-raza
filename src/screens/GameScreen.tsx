@@ -15,6 +15,7 @@ import EmojiReaction from '../components/EmojiReaction';
 import MathChallengeModal from '../components/MathChallengeModal';
 
 import { Player, ALL_PLAYERS, PLAYER_COLORS, PLAYER_LABELS } from '../constants/players';
+import { PLAYER_GLOSS, GOLD_GLOSS } from '../constants/gloss';
 import { AppTheme } from '../constants/themes';
 import { LUDO_FACTS, WIN_TIPS, LOSS_TIPS } from '../constants/learningContent';
 import { gameReducer, createInitialState, getValidMoves, WIN_POS } from '../logic/gameLogic';
@@ -31,6 +32,27 @@ const BOARD_SIZE = Math.min(SCREEN_W - 8, SCREEN_H * 0.52);
 const PLAYER_EMOJI: Record<Player, string> = {
   red: '🔴', green: '🟢', yellow: '🟡', blue: '🔵',
 };
+
+/** Glossy 3D pill — gradient fill + top sheen, used for the roll/action button. */
+function GlossyPill({ colors, onPress, disabled, children }: {
+  colors: readonly [string, string, ...string[]];
+  onPress?: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  const content = (
+    <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 0.9, y: 1 }} style={styles.rollBtn}>
+      <View style={styles.rollBtnSheen} />
+      {children}
+    </LinearGradient>
+  );
+  if (!onPress) return content;
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.85} disabled={disabled}>
+      {content}
+    </TouchableOpacity>
+  );
+}
 
 interface GameScreenProps {
   players: Player[];
@@ -138,6 +160,34 @@ export default function GameScreen({
     state.phase === 'selecting' && state.diceValue != null
       ? getValidMoves(state, currentPlayer, state.diceValue)
       : [];
+
+  // ── Bonus-turn banner ───────────────────────────────────────────────────────
+  // Rolling a 6 keeps the same player at bat (see gameReducer/applyMove) but
+  // that was previously invisible — nothing on screen said "bonus roll!".
+  const [showBonus, setShowBonus] = useState(false);
+  const bonusAnim = useRef(new Animated.Value(0)).current;
+  const prevForBonusRef = useRef({ dice: state.diceValue, playerIdx: state.currentPlayerIdx });
+
+  useEffect(() => {
+    const prev = prevForBonusRef.current;
+    prevForBonusRef.current = { dice: state.diceValue, playerIdx: state.currentPlayerIdx };
+
+    const gotBonus =
+      prev.dice === 6 &&
+      state.diceValue === null &&
+      state.phase === 'rolling' &&
+      state.currentPlayerIdx === prev.playerIdx;
+
+    if (gotBonus) {
+      setShowBonus(true);
+      bonusAnim.setValue(0);
+      Animated.sequence([
+        Animated.spring(bonusAnim, { toValue: 1, useNativeDriver: true, tension: 140, friction: 7 }),
+        Animated.delay(900),
+        Animated.timing(bonusAnim, { toValue: 0, duration: 250, useNativeDriver: true }),
+      ]).start(() => setShowBonus(false));
+    }
+  }, [state.diceValue, state.currentPlayerIdx, state.phase]);
 
   // ── Emoji reaction ─────────────────────────────────────────────────────────
   const [flyingEmoji, setFlyingEmoji] = useState<string | null>(null);
@@ -338,11 +388,13 @@ export default function GameScreen({
 
         {/* Top bar */}
         <View style={styles.topBar}>
-          <TouchableOpacity onPress={handleHome} style={styles.navBtn}>
+          <TouchableOpacity onPress={handleHome} style={styles.navBtn} activeOpacity={0.75}>
             <Text style={styles.navTxt}>← Menu</Text>
           </TouchableOpacity>
-          <Text style={styles.gameTitle}>🎲 LUDO RAZA</Text>
-          <TouchableOpacity onPress={handleNewGame} style={styles.navBtn}>
+          <View style={styles.titleBadge}>
+            <Text style={styles.gameTitle}>🎲 LUDO RAZA</Text>
+          </View>
+          <TouchableOpacity onPress={handleNewGame} style={styles.navBtn} activeOpacity={0.75}>
             <Text style={styles.navTxt}>↺ New</Text>
           </TouchableOpacity>
         </View>
@@ -394,8 +446,24 @@ export default function GameScreen({
         {/* Controls */}
         <View style={styles.controls}>
 
+          {/* Bonus-turn badge — pops up when a 6 grants another roll */}
+          {showBonus && (
+            <Animated.View
+              style={[
+                styles.bonusBadge,
+                {
+                  opacity: bonusAnim,
+                  transform: [{ scale: bonusAnim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }) }],
+                },
+              ]}
+              pointerEvents="none"
+            >
+              <Text style={styles.bonusText}>🎉 BONUS! Roll Again!</Text>
+            </Animated.View>
+          )}
+
           {/* Turn banner */}
-          <View style={[styles.turnBanner, { borderColor: playerColor, backgroundColor: playerColor + '22' }]}>
+          <View style={[styles.turnBanner, { borderColor: playerColor, backgroundColor: playerColor + '22', shadowColor: playerColor }]}>
             <Text style={[styles.turnText, { color: playerColor }]}>{turnLabel()}</Text>
             {isComputerTurn && <ThinkingDots color={playerColor} />}
           </View>
@@ -413,14 +481,10 @@ export default function GameScreen({
 
             <View style={styles.actionArea}>
               {state.phase === 'rolling' && !isComputerTurn && !isDiceSpinning && (
-                <TouchableOpacity
-                  style={[styles.rollBtn, { backgroundColor: playerColor }]}
-                  onPress={handleRoll}
-                  activeOpacity={0.8}
-                >
+                <GlossyPill colors={[PLAYER_GLOSS[currentPlayer].light, PLAYER_GLOSS[currentPlayer].base, PLAYER_GLOSS[currentPlayer].dark]} onPress={handleRoll}>
                   <Text style={styles.rollBtnIcon}>🎲</Text>
                   <Text style={styles.rollBtnTxt}>ROLL!</Text>
-                </TouchableOpacity>
+                </GlossyPill>
               )}
 
               {(isDiceSpinning || (state.phase === 'rolling' && isComputerTurn)) && (
@@ -447,14 +511,10 @@ export default function GameScreen({
               )}
 
               {state.phase === 'gameover' && (
-                <TouchableOpacity
-                  style={[styles.rollBtn, { backgroundColor: theme.accent }]}
-                  onPress={handleNewGame}
-                  activeOpacity={0.85}
-                >
+                <GlossyPill colors={[GOLD_GLOSS.light, GOLD_GLOSS.base, GOLD_GLOSS.dark]} onPress={handleNewGame}>
                   <Text style={styles.rollBtnIcon}>🔄</Text>
                   <Text style={[styles.rollBtnTxt, { color: '#1A237E' }]}>AGAIN!</Text>
-                </TouchableOpacity>
+                </GlossyPill>
               )}
             </View>
           </View>
@@ -522,9 +582,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 12, paddingVertical: 6,
   },
-  navBtn:    { paddingHorizontal: 8, paddingVertical: 6 },
-  navTxt:    { color: '#90CAF9', fontSize: 13, fontWeight: '700' },
-  gameTitle: { color: 'white', fontSize: 17, fontWeight: '900', letterSpacing: 2 },
+  navBtn: {
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+  },
+  navTxt: { color: '#90CAF9', fontSize: 13, fontWeight: '700' },
+  titleBadge: {
+    paddingHorizontal: 14, paddingVertical: 5, borderRadius: 14,
+    backgroundColor: 'rgba(255,214,0,0.14)',
+    borderWidth: 1, borderColor: 'rgba(255,214,0,0.35)',
+  },
+  gameTitle: {
+    color: '#FFD600', fontSize: 15, fontWeight: '900', letterSpacing: 2,
+    textShadowColor: 'rgba(0,0,0,0.4)', textShadowRadius: 4, textShadowOffset: { width: 0, height: 1 },
+  },
 
   panelRow: { flexDirection: 'row', paddingHorizontal: 6, paddingVertical: 2 },
 
@@ -539,8 +611,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 18, paddingVertical: 7,
     borderRadius: 24, borderWidth: 2,
+    shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.5, shadowRadius: 6, elevation: 4,
   },
   turnText: { fontSize: 15, fontWeight: '800' },
+
+  bonusBadge: {
+    backgroundColor: '#FFD600', paddingHorizontal: 16, paddingVertical: 6,
+    borderRadius: 20, marginBottom: 2,
+    shadowColor: '#FFD600', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.7, shadowRadius: 8, elevation: 6,
+  },
+  bonusText: { color: '#1A237E', fontSize: 14, fontWeight: '900', letterSpacing: 0.5 },
 
   diceRow:    { flexDirection: 'row', alignItems: 'center', gap: 18 },
   actionArea: {},
@@ -548,6 +628,12 @@ const styles = StyleSheet.create({
   rollBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingVertical: 13, paddingHorizontal: 22, borderRadius: 30,
+    overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 6,
+  },
+  rollBtnSheen: {
+    position: 'absolute', top: 3, left: 10, right: 10, height: '42%',
+    borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.35)',
   },
   rollBtnIcon: { fontSize: 20 },
   rollBtnTxt:  { fontSize: 16, fontWeight: '900', color: 'white', letterSpacing: 1.5 },

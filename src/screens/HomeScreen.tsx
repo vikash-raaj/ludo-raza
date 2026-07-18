@@ -8,7 +8,23 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { Player } from '../constants/players';
 import { AppTheme, THEMES, ThemeName } from '../constants/themes';
+import { GOLD_GLOSS, shade } from '../constants/gloss';
 import { WinStats, AIDifficulty, TokenShape } from '../utils/storage';
+
+/** Glossy gradient tile — used for every "active/selected" or primary-action
+ * surface in the lobby (gold badges, navy selections, the big start button). */
+function Glossy({ colors, style, children }: {
+  colors: readonly [string, string, ...string[]];
+  style?: any;
+  children?: React.ReactNode;
+}) {
+  return (
+    <LinearGradient colors={colors} start={{ x: 0.15, y: 0 }} end={{ x: 0.9, y: 1 }} style={[styles.glossyBase, style]}>
+      <View style={styles.glossySheen} pointerEvents="none" />
+      {children}
+    </LinearGradient>
+  );
+}
 
 type GameMode = 'friends' | 'computer';
 type GameType = 'ludo' | 'snake';
@@ -101,7 +117,9 @@ export default function HomeScreen({
 
           {/* ── Header ─────────────────────────────────────────────────── */}
           <View style={styles.header}>
-            <Text style={styles.diceEmoji}>🎲</Text>
+            <Glossy colors={[GOLD_GLOSS.light, GOLD_GLOSS.base, GOLD_GLOSS.dark]} style={styles.diceBadge}>
+              <Text style={styles.diceEmoji}>🎲</Text>
+            </Glossy>
             <Text style={styles.title}>LUDO RAZA</Text>
             <Text style={styles.subtitle}>Roll • Move • Win!</Text>
             <View style={styles.colorStrip}>
@@ -129,26 +147,40 @@ export default function HomeScreen({
 
           {/* Resume banner */}
           {hasSavedGame && (
-            <TouchableOpacity style={styles.resumeBanner} onPress={onResumeLudo} activeOpacity={0.85}>
-              <Text style={styles.resumeText}>▶  CONTINUE SAVED GAME</Text>
+            <TouchableOpacity onPress={onResumeLudo} activeOpacity={0.85} style={styles.fullWidth}>
+              <Glossy colors={[shade('#43A047', 25), '#43A047', shade('#43A047', -30)]} style={styles.resumeBanner}>
+                <Text style={styles.resumeText}>▶  CONTINUE SAVED GAME</Text>
+              </Glossy>
             </TouchableOpacity>
           )}
 
           {/* ── Game type selector ──────────────────────────────────── */}
           <View style={styles.gameTypeRow}>
-            <TouchableOpacity
-              style={[styles.gameTypeBtn, gameType === 'ludo' && styles.gameTypeBtnActive]}
-              onPress={() => setGameType('ludo')} activeOpacity={0.8}
-            >
-              <Text style={styles.gameTypeIcon}>🎲</Text>
-              <Text style={[styles.gameTypeLabel, gameType === 'ludo' && styles.gameTypeLabelActive]}>Ludo</Text>
+            <TouchableOpacity style={styles.fill1} onPress={() => setGameType('ludo')} activeOpacity={0.8}>
+              {gameType === 'ludo' ? (
+                <Glossy colors={[GOLD_GLOSS.light, GOLD_GLOSS.base, GOLD_GLOSS.dark]} style={[styles.gameTypeBtn, styles.activeGoldShadow]}>
+                  <Text style={styles.gameTypeIcon}>🎲</Text>
+                  <Text style={[styles.gameTypeLabel, styles.gameTypeLabelActive]}>Ludo</Text>
+                </Glossy>
+              ) : (
+                <View style={[styles.gameTypeBtn, styles.tileIdle]}>
+                  <Text style={styles.gameTypeIcon}>🎲</Text>
+                  <Text style={styles.gameTypeLabel}>Ludo</Text>
+                </View>
+              )}
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.gameTypeBtn, gameType === 'snake' && styles.gameTypeBtnActive]}
-              onPress={() => setGameType('snake')} activeOpacity={0.8}
-            >
-              <Text style={styles.gameTypeIcon}>🐍</Text>
-              <Text style={[styles.gameTypeLabel, gameType === 'snake' && styles.gameTypeLabelActive]}>Snakes & Ladders</Text>
+            <TouchableOpacity style={styles.fill1} onPress={() => setGameType('snake')} activeOpacity={0.8}>
+              {gameType === 'snake' ? (
+                <Glossy colors={[GOLD_GLOSS.light, GOLD_GLOSS.base, GOLD_GLOSS.dark]} style={[styles.gameTypeBtn, styles.activeGoldShadow]}>
+                  <Text style={styles.gameTypeIcon}>🐍</Text>
+                  <Text style={[styles.gameTypeLabel, styles.gameTypeLabelActive]}>Snakes & Ladders</Text>
+                </Glossy>
+              ) : (
+                <View style={[styles.gameTypeBtn, styles.tileIdle]}>
+                  <Text style={styles.gameTypeIcon}>🐍</Text>
+                  <Text style={styles.gameTypeLabel}>Snakes & Ladders</Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
 
@@ -156,13 +188,31 @@ export default function HomeScreen({
           {gameType === 'ludo' && (
             <>
               <View style={styles.modeRow}>
-                <TouchableOpacity style={[styles.modeBtn, mode === 'friends' && styles.modeBtnActive]} onPress={() => setMode('friends')} activeOpacity={0.8}>
-                  <Text style={styles.modeIcon}>👥</Text>
-                  <Text style={[styles.modeLabel, mode === 'friends' && styles.modeLabelActive]}>With Friends</Text>
+                <TouchableOpacity style={styles.fill1} onPress={() => setMode('friends')} activeOpacity={0.8}>
+                  {mode === 'friends' ? (
+                    <Glossy colors={[GOLD_GLOSS.light, GOLD_GLOSS.base, GOLD_GLOSS.dark]} style={[styles.modeBtn, styles.activeGoldShadow]}>
+                      <Text style={styles.modeIcon}>👥</Text>
+                      <Text style={[styles.modeLabel, styles.modeLabelActive]}>With Friends</Text>
+                    </Glossy>
+                  ) : (
+                    <View style={[styles.modeBtn, styles.tileIdle]}>
+                      <Text style={styles.modeIcon}>👥</Text>
+                      <Text style={styles.modeLabel}>With Friends</Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.modeBtn, mode === 'computer' && styles.modeBtnActive]} onPress={() => setMode('computer')} activeOpacity={0.8}>
-                  <Text style={styles.modeIcon}>🤖</Text>
-                  <Text style={[styles.modeLabel, mode === 'computer' && styles.modeLabelActive]}>vs Computer</Text>
+                <TouchableOpacity style={styles.fill1} onPress={() => setMode('computer')} activeOpacity={0.8}>
+                  {mode === 'computer' ? (
+                    <Glossy colors={[GOLD_GLOSS.light, GOLD_GLOSS.base, GOLD_GLOSS.dark]} style={[styles.modeBtn, styles.activeGoldShadow]}>
+                      <Text style={styles.modeIcon}>🤖</Text>
+                      <Text style={[styles.modeLabel, styles.modeLabelActive]}>vs Computer</Text>
+                    </Glossy>
+                  ) : (
+                    <View style={[styles.modeBtn, styles.tileIdle]}>
+                      <Text style={styles.modeIcon}>🤖</Text>
+                      <Text style={styles.modeLabel}>vs Computer</Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
               </View>
 
@@ -171,9 +221,18 @@ export default function HomeScreen({
                   <Text style={styles.cardTitle}>How many players?</Text>
                   <View style={styles.countRow}>
                     {([2, 3, 4] as const).map(n => (
-                      <TouchableOpacity key={n} style={[styles.countBtn, count === n && styles.countBtnActive]} onPress={() => setCount(n)} activeOpacity={0.8}>
-                        <Text style={[styles.countNum, count === n && styles.countNumActive]}>{n}</Text>
-                        <Text style={[styles.countSub, count === n && styles.countSubActive]}>players</Text>
+                      <TouchableOpacity key={n} onPress={() => setCount(n)} activeOpacity={0.8}>
+                        {count === n ? (
+                          <Glossy colors={[shade('#1A237E', 30), '#1A237E', shade('#1A237E', -25)]} style={[styles.countBtn, styles.transparentBorder]}>
+                            <Text style={[styles.countNum, styles.countNumActive]}>{n}</Text>
+                            <Text style={[styles.countSub, styles.countSubActive]}>players</Text>
+                          </Glossy>
+                        ) : (
+                          <View style={[styles.countBtn, styles.tileIdle]}>
+                            <Text style={styles.countNum}>{n}</Text>
+                            <Text style={styles.countSub}>players</Text>
+                          </View>
+                        )}
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -202,9 +261,18 @@ export default function HomeScreen({
                   <Text style={styles.cardTitle}>You vs {cpuCount} Computer{cpuCount > 1 ? 's' : ''}!</Text>
                   <View style={styles.countRow}>
                     {([1, 2, 3] as const).map(n => (
-                      <TouchableOpacity key={n} style={[styles.countBtn, cpuCount === n && styles.countBtnActive]} onPress={() => setCpuCount(n)} activeOpacity={0.8}>
-                        <Text style={[styles.countNum, cpuCount === n && styles.countNumActive]}>{n}</Text>
-                        <Text style={[styles.countSub, cpuCount === n && styles.countSubActive]}>{n === 1 ? 'CPU' : 'CPUs'}</Text>
+                      <TouchableOpacity key={n} onPress={() => setCpuCount(n)} activeOpacity={0.8}>
+                        {cpuCount === n ? (
+                          <Glossy colors={[shade('#1A237E', 30), '#1A237E', shade('#1A237E', -25)]} style={[styles.countBtn, styles.transparentBorder]}>
+                            <Text style={[styles.countNum, styles.countNumActive]}>{n}</Text>
+                            <Text style={[styles.countSub, styles.countSubActive]}>{n === 1 ? 'CPU' : 'CPUs'}</Text>
+                          </Glossy>
+                        ) : (
+                          <View style={[styles.countBtn, styles.tileIdle]}>
+                            <Text style={styles.countNum}>{n}</Text>
+                            <Text style={styles.countSub}>{n === 1 ? 'CPU' : 'CPUs'}</Text>
+                          </View>
+                        )}
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -227,15 +295,20 @@ export default function HomeScreen({
                   <View style={styles.diffRow}>
                     {(['easy','medium','hard'] as AIDifficulty[]).map(d => {
                       const { label, emoji, color } = AI_LABELS[d];
+                      const active = aiDifficulty === d;
                       return (
-                        <TouchableOpacity
-                          key={d}
-                          style={[styles.diffBtn, aiDifficulty === d && { backgroundColor: color, borderColor: color }]}
-                          onPress={() => onAiDiffChange(d)}
-                          activeOpacity={0.8}
-                        >
-                          <Text style={styles.diffEmoji}>{emoji}</Text>
-                          <Text style={[styles.diffLabel, aiDifficulty === d && styles.diffLabelActive]}>{label}</Text>
+                        <TouchableOpacity key={d} style={styles.fill1} onPress={() => onAiDiffChange(d)} activeOpacity={0.8}>
+                          {active ? (
+                            <Glossy colors={[shade(color, 25), color, shade(color, -25)]} style={[styles.diffBtn, styles.transparentBorder]}>
+                              <Text style={styles.diffEmoji}>{emoji}</Text>
+                              <Text style={[styles.diffLabel, styles.diffLabelActive]}>{label}</Text>
+                            </Glossy>
+                          ) : (
+                            <View style={styles.diffBtn}>
+                              <Text style={styles.diffEmoji}>{emoji}</Text>
+                              <Text style={styles.diffLabel}>{label}</Text>
+                            </View>
+                          )}
                         </TouchableOpacity>
                       );
                     })}
@@ -262,9 +335,11 @@ export default function HomeScreen({
                 </View>
               </View>
 
-              <TouchableOpacity style={[styles.startBtn, { shadowColor: theme.accent }]} onPress={handleStartLudo} activeOpacity={0.85}>
-                <Text style={styles.startIcon}>🎮</Text>
-                <Text style={[styles.startBtnText, { color: '#1A237E' }]}>START LUDO!</Text>
+              <TouchableOpacity onPress={handleStartLudo} activeOpacity={0.85} style={styles.fullWidth}>
+                <Glossy colors={[GOLD_GLOSS.light, GOLD_GLOSS.base, GOLD_GLOSS.dark]} style={[styles.startBtn, { shadowColor: theme.accent }]}>
+                  <Text style={styles.startIcon}>🎮</Text>
+                  <Text style={[styles.startBtnText, { color: '#1A237E' }]}>START LUDO!</Text>
+                </Glossy>
               </TouchableOpacity>
             </>
           )}
@@ -285,19 +360,27 @@ export default function HomeScreen({
 
                 {/* 1P / 2P toggle */}
                 <View style={styles.snakeModeRow}>
-                  <TouchableOpacity
-                    style={[styles.snakeModeBtn, !snake2P && styles.snakeModeBtnActive]}
-                    onPress={() => setSnake2P(false)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[styles.snakeModeTxt, !snake2P && styles.snakeModeTxtActive]}>🤖 vs Computer</Text>
+                  <TouchableOpacity style={styles.fill1} onPress={() => setSnake2P(false)} activeOpacity={0.8}>
+                    {!snake2P ? (
+                      <Glossy colors={[shade('#7B1FA2', 25), '#7B1FA2', shade('#7B1FA2', -25)]} style={[styles.snakeModeBtn, styles.transparentBorder]}>
+                        <Text style={[styles.snakeModeTxt, styles.snakeModeTxtActive]}>🤖 vs Computer</Text>
+                      </Glossy>
+                    ) : (
+                      <View style={styles.snakeModeBtn}>
+                        <Text style={styles.snakeModeTxt}>🤖 vs Computer</Text>
+                      </View>
+                    )}
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.snakeModeBtn, snake2P && styles.snakeModeBtnActive]}
-                    onPress={() => setSnake2P(true)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[styles.snakeModeTxt, snake2P && styles.snakeModeTxtActive]}>👥 2 Players</Text>
+                  <TouchableOpacity style={styles.fill1} onPress={() => setSnake2P(true)} activeOpacity={0.8}>
+                    {snake2P ? (
+                      <Glossy colors={[shade('#7B1FA2', 25), '#7B1FA2', shade('#7B1FA2', -25)]} style={[styles.snakeModeBtn, styles.transparentBorder]}>
+                        <Text style={[styles.snakeModeTxt, styles.snakeModeTxtActive]}>👥 2 Players</Text>
+                      </Glossy>
+                    ) : (
+                      <View style={styles.snakeModeBtn}>
+                        <Text style={styles.snakeModeTxt}>👥 2 Players</Text>
+                      </View>
+                    )}
                   </TouchableOpacity>
                 </View>
 
@@ -313,9 +396,11 @@ export default function HomeScreen({
                   </View>
                 </View>
               </View>
-              <TouchableOpacity style={[styles.startBtn, { backgroundColor: '#7B1FA2', shadowColor: '#7B1FA2' }]} onPress={() => onStartSnake(mathMode, snake2P)} activeOpacity={0.85}>
-                <Text style={styles.startIcon}>🐍</Text>
-                <Text style={[styles.startBtnText, { color: 'white' }]}>START GAME!</Text>
+              <TouchableOpacity onPress={() => onStartSnake(mathMode, snake2P)} activeOpacity={0.85} style={styles.fullWidth}>
+                <Glossy colors={[shade('#7B1FA2', 25), '#7B1FA2', shade('#7B1FA2', -25)]} style={[styles.startBtn, { shadowColor: '#7B1FA2' }]}>
+                  <Text style={styles.startIcon}>🐍</Text>
+                  <Text style={[styles.startBtnText, { color: 'white' }]}>START GAME!</Text>
+                </Glossy>
               </TouchableOpacity>
             </>
           )}
@@ -402,8 +487,10 @@ export default function HomeScreen({
               ))}
             </View>
 
-            <TouchableOpacity style={styles.closeBtn} onPress={() => setShowSettings(false)} activeOpacity={0.8}>
-              <Text style={styles.closeBtnText}>Done</Text>
+            <TouchableOpacity onPress={() => setShowSettings(false)} activeOpacity={0.8} style={styles.fullWidth}>
+              <Glossy colors={[shade('#1A237E', 25), '#1A237E', shade('#1A237E', -20)]} style={styles.closeBtn}>
+                <Text style={styles.closeBtnText}>Done</Text>
+              </Glossy>
             </TouchableOpacity>
           </View>
         </View>
@@ -450,8 +537,10 @@ export default function HomeScreen({
                 </View>
               </View>
             </View>
-            <TouchableOpacity style={styles.closeBtn} onPress={() => setShowStats(false)} activeOpacity={0.8}>
-              <Text style={styles.closeBtnText}>Close</Text>
+            <TouchableOpacity onPress={() => setShowStats(false)} activeOpacity={0.8} style={styles.fullWidth}>
+              <Glossy colors={[shade('#1A237E', 25), '#1A237E', shade('#1A237E', -20)]} style={styles.closeBtn}>
+                <Text style={styles.closeBtnText}>Close</Text>
+              </Glossy>
             </TouchableOpacity>
           </View>
         </View>
@@ -461,13 +550,29 @@ export default function HomeScreen({
 }
 
 const styles = StyleSheet.create({
-  fill: { flex: 1 },
+  fill:      { flex: 1 },
+  fill1:     { flex: 1 },
+  fullWidth: { width: '100%' },
   safe: { flex: 1, backgroundColor: 'transparent' },
   scroll: { alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, gap: 16 },
 
+  // Reusable glossy gradient tile (see <Glossy>)
+  glossyBase: { overflow: 'hidden', position: 'relative' },
+  glossySheen: {
+    position: 'absolute', top: 3, left: '8%', right: '8%', height: '42%',
+    borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.32)',
+  },
+  tileIdle: { backgroundColor: 'rgba(255,255,255,0.12)' },
+
   // Header
   header:    { alignItems: 'center', gap: 4 },
-  diceEmoji: { fontSize: 52 },
+  diceBadge: {
+    width: 76, height: 76, borderRadius: 38, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2.5, borderColor: 'rgba(255,255,255,0.7)',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 8,
+    marginBottom: 4,
+  },
+  diceEmoji: { fontSize: 38 },
   title: {
     fontSize: 46, fontWeight: '900', color: '#FFFFFF', letterSpacing: 6,
     textShadowColor: 'rgba(0,0,0,0.4)', textShadowRadius: 10, textShadowOffset: { width: 2, height: 3 },
@@ -486,7 +591,7 @@ const styles = StyleSheet.create({
 
   // Resume
   resumeBanner: {
-    backgroundColor: '#43A047', width: '100%', paddingVertical: 14,
+    width: '100%', paddingVertical: 14,
     borderRadius: 16, alignItems: 'center',
     shadowColor: '#43A047', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.5, shadowRadius: 8, elevation: 6,
@@ -497,9 +602,9 @@ const styles = StyleSheet.create({
   gameTypeRow: { flexDirection: 'row', gap: 12, width: '100%' },
   gameTypeBtn: {
     flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)', gap: 4,
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)', gap: 4,
   },
-  gameTypeBtnActive: { backgroundColor: 'white', borderColor: '#FFD600', shadowColor: '#FFD600', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 8, elevation: 6 },
+  activeGoldShadow: { shadowColor: '#FFD600', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 8, elevation: 6, borderColor: 'transparent' },
   gameTypeIcon:        { fontSize: 26 },
   gameTypeLabel:       { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.85)' },
   gameTypeLabelActive: { color: '#1A237E' },
@@ -508,12 +613,12 @@ const styles = StyleSheet.create({
   modeRow: { flexDirection: 'row', gap: 12, width: '100%' },
   modeBtn: {
     flex: 1, alignItems: 'center', paddingVertical: 16, borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)', gap: 6,
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)', gap: 6,
   },
-  modeBtnActive: { backgroundColor: 'white', borderColor: '#FFD600', shadowColor: '#FFD600', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 8, elevation: 6 },
   modeIcon:        { fontSize: 30 },
   modeLabel:       { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.85)', letterSpacing: 0.5 },
   modeLabelActive: { color: '#1A237E' },
+  transparentBorder: { borderColor: 'transparent' },
 
   // Card
   card: {
@@ -529,7 +634,6 @@ const styles = StyleSheet.create({
     width: 76, height: 76, borderRadius: 16, borderWidth: 2.5,
     borderColor: '#C5CAE9', alignItems: 'center', justifyContent: 'center', gap: 2, backgroundColor: '#F5F5F5',
   },
-  countBtnActive:  { backgroundColor: '#1A237E', borderColor: '#1A237E' },
   countNum:        { fontSize: 28, fontWeight: '900', color: '#757575' },
   countNumActive:  { color: 'white' },
   countSub:        { fontSize: 10, color: '#9E9E9E', fontWeight: '600' },
@@ -572,7 +676,7 @@ const styles = StyleSheet.create({
   // Start button
   startBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: '#FFD600', paddingVertical: 18, paddingHorizontal: 48,
+    paddingVertical: 18, paddingHorizontal: 48,
     borderRadius: 50, width: '100%', justifyContent: 'center',
     shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.55, shadowRadius: 14, elevation: 10,
   },
@@ -582,7 +686,6 @@ const styles = StyleSheet.create({
   // Snake card
   snakeModeRow:         { flexDirection: 'row', gap: 8, width: '100%' },
   snakeModeBtn:         { flex: 1, paddingVertical: 10, borderRadius: 16, borderWidth: 2, borderColor: '#E0E0E0', alignItems: 'center' },
-  snakeModeBtnActive:   { backgroundColor: '#7B1FA2', borderColor: '#7B1FA2' },
   snakeModeTxt:         { fontSize: 13, fontWeight: '800', color: '#757575' },
   snakeModeTxtActive:   { color: 'white' },
   snakeTitle:       { fontSize: 20, fontWeight: '900', color: '#4A148C', textAlign: 'center' },
@@ -643,6 +746,6 @@ const styles = StyleSheet.create({
   splitGame:  { fontSize: 14, fontWeight: '800', color: '#37474F' },
   splitDetail:{ fontSize: 12, color: '#78909C', fontWeight: '600' },
 
-  closeBtn: { backgroundColor: '#1A237E', paddingVertical: 14, borderRadius: 24, alignItems: 'center', marginTop: 8 },
+  closeBtn: { paddingVertical: 14, borderRadius: 24, alignItems: 'center', marginTop: 8 },
   closeBtnText: { color: 'white', fontSize: 16, fontWeight: '900', letterSpacing: 1 },
 });

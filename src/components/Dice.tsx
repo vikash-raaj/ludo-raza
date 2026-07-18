@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { TouchableOpacity, StyleSheet, Animated } from 'react-native';
-import Svg, { Circle, Rect } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 const DOT_POSITIONS: Record<number, [number, number][]> = {
   1: [[0.5, 0.5]],
@@ -80,15 +80,47 @@ export default function Dice({ value, size = 80, canRoll, onRoll, color, spinnin
         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
       >
         <Svg width={size} height={size}>
+          <Defs>
+            <LinearGradient id="diceFace" x1="0%" y1="0%" x2="100%" y2="100%">
+              <Stop offset="0%" stopColor="#FFFFFF" />
+              <Stop offset="55%" stopColor="#F3F4FA" />
+              <Stop offset="100%" stopColor="#DCE0F0" />
+            </LinearGradient>
+            <RadialGradient id="diceDot" cx="32%" cy="28%" r="80%">
+              <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.95} />
+              <Stop offset="45%" stopColor={isActive || spinning ? color : '#9E9E9E'} />
+              <Stop offset="100%" stopColor={isActive || spinning ? color : '#757575'} />
+            </RadialGradient>
+          </Defs>
+
+          {/* cube depth — offset shadow face gives the block a raised, 3D edge */}
           <Rect
-            x={2} y={2} width={size - 4} height={size - 4}
-            rx={size * 0.18} ry={size * 0.18}
-            fill="white"
-            stroke={isActive || spinning ? color : '#9E9E9E'}
-            strokeWidth={isActive || spinning ? 4 : 2}
+            x={5} y={7} width={size - 8} height={size - 8}
+            rx={size * 0.2} ry={size * 0.2}
+            fill="rgba(0,0,0,0.22)"
           />
+
+          <Rect
+            x={2} y={2} width={size - 6} height={size - 6}
+            rx={size * 0.2} ry={size * 0.2}
+            fill="url(#diceFace)"
+            stroke={isActive || spinning ? color : '#9E9E9E'}
+            strokeWidth={isActive || spinning ? 3.5 : 1.5}
+          />
+
+          {/* glossy top sheen */}
+          <Rect
+            x={5} y={5} width={size - 12} height={(size - 12) * 0.4}
+            rx={size * 0.14} ry={size * 0.14}
+            fill="#FFFFFF" opacity={0.5}
+          />
+
           {dots.map(([cx, cy], i) => (
-            <Circle key={i} cx={cx * size} cy={cy * size} r={r} fill={isActive || spinning ? color : '#9E9E9E'} />
+            <Circle
+              key={i} cx={cx * size} cy={cy * size} r={r}
+              fill="url(#diceDot)"
+              stroke="rgba(0,0,0,0.15)" strokeWidth={0.5}
+            />
           ))}
           {!displayValue && (
             <Circle cx={size / 2} cy={size / 2} r={size * 0.14} fill="#E0E0E0" />
